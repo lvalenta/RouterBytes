@@ -69,6 +69,7 @@ public protocol APIRouter<RequestBody>: Sendable {
     func encode(_ value: RequestBody) throws -> Data?
     func decode<T: Decodable>(_ type: T.Type, from data: Data) throws  -> T
     func contentType(from body: RequestBody) -> ContentType
+    func asURL(hostname: URL) throws -> URL
 }
 
 public extension APIRouter {
