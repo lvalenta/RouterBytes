@@ -3,7 +3,7 @@
     "pins": [
       {
         "package": "CleevioCore",
-        "repositoryURL": "git@gitlab.cleevio.cz:cleevio-dev-ios/CleevioCore",
+        "repositoryURL": "https://github.com/cleevio/CleevioCore.git",
         "state": {
           "branch": null,
           "revision": "593b5d1011ad0aa6963ea2d8bf2ddc5e59caa917",
@@ -12,11 +12,11 @@
       },
       {
         "package": "CleevioStorageLibrary",
-        "repositoryURL": "git@gitlab.cleevio.cz:cleevio-dev-ios/CleevioStorage",
+        "repositoryURL": "https://github.com/cleevio/CleevioStorage.git",
         "state": {
           "branch": null,
-          "revision": "0fd34beefca537809ee6d72d69ccb0980a203dab",
-          "version": "0.4.2"
+          "revision": "87ed8a6189cba4c877367dd2e57161080e6d8cad",
+          "version": "0.4.3"
         }
       },
       {
