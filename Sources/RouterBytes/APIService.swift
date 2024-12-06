@@ -148,6 +148,10 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
             return try await getDataFromNetwork(for: try await getURLRequest(from: router))
         } catch let error as NSError where error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut {
             return try await getDataFromNetwork(for: try await getURLRequest(from: router))
+        } catch let error as NSError where error.code == NSURLErrorCancelled {
+            throw CancellationError()
+        } catch let error as NSError where error.code == -1009 {
+            throw URLError(.notConnectedToInternet)
         } catch ResponseValidationError.unauthorized {
             do {
                 let request = try await getURLRequestOnUnAuthorizedError(from: router)
