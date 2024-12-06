@@ -254,6 +254,42 @@ final class APIRouterServiceTests: XCTestCase {
         wait(for: [firstRequest, secondRequest], timeout: 1)
     }
 
+    func testCancellationErrorMapping() async throws {
+        let router: BaseAPIRouter<String, String> = Self.mockRouter()
+        _ = try router.asURLRequest()
+
+        networkingService.onDataCall = { _, _ in
+            throw NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
+        }
+
+        do {
+            _ = try await apiService.getResponse(from: router)
+            XCTFail("Expected CancellationError, but no error was thrown.")
+        } catch is CancellationError {
+            XCTAssertTrue(true, "CancellationError was correctly thrown.")
+        } catch {
+            XCTFail("Expected CancellationError, but received \(error).")
+        }
+    }
+
+    func testURLErrorNotConnectedToInternet() async throws {
+        let router: BaseAPIRouter<String, String> = Self.mockRouter()
+        _ = try router.asURLRequest()
+
+        networkingService.onDataCall = { _, _ in
+            throw NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet, userInfo: nil)
+        }
+
+        do {
+            _ = try await apiService.getResponse(from: router)
+            XCTFail("Expected URLError(.notConnectedToInternet) to be thrown")
+        } catch let error as URLError {
+            XCTAssertEqual(error.code, .notConnectedToInternet, "URLError(.notConnectedToInternet) was correctly thrown")
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
     static private func mockRouter<Response: Decodable>() -> BaseAPIRouter<String, Response> {
         BaseAPIRouter(hostname: URL(string: "https://cleevio.com")!, path: "/blog", authType: .none, body: "")
     }

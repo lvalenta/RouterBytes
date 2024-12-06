@@ -1,5 +1,6 @@
 # CleevioAPI Changelog
 
-## [0.6.3] - 2024-09-04
+## [0.6.4] - 2024-12-03
 ### Added
-- Added support for watchOS.
+- Mapped NSURLErrorCancelled to CancellationError.
+- Mapped NSURLErrorNotConnectedToInternet (code: -1009) to URLError(.notConnectedToInternet).
