@@ -37,13 +37,15 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/cleevio/CleevioCore.git", .upToNextMajor(from: .init(2, 1, 7))),
-        .package(url: "https://github.com/cleevio/CleevioStorage.git", .upToNextMajor(from: .init(0, 4, 2)))
+        .package(url: "https://github.com/cleevio/CleevioStorage.git", .upToNextMajor(from: .init(0, 4, 2))),
+        .package(url: "https://github.com/apple/swift-collections.git", from: .init(1, 1, 1)),
     ],
     targets: [
         .target(
             name: "RouterBytes",
             dependencies: [
-                .product(name: "CleevioCore", package: "CleevioCore")
+                .product(name: "CleevioCore", package: "CleevioCore"),
+                .product(name: "OrderedCollections", package: "swift-collections")
             ],
             swiftSettings: swiftSettings
         ),

@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import OrderedCollections
 
-public struct BaseAPIRouter<RequestBody: Sendable & Encodable, Response: Decodable>: APIRouter, HasHostname {
+public struct BaseAPIRouter<RequestBody: Sendable & Encodable, Response: Decodable & Sendable>: APIRouter, HasHostname {
     public let defaultHeaders: Headers
     public let hostname: URL
     public let jsonDecoder: JSONDecoder
@@ -15,7 +16,7 @@ public struct BaseAPIRouter<RequestBody: Sendable & Encodable, Response: Decodab
     public let path: Path
     public let authType: AuthorizationType
     public let additionalHeaders: Headers
-    public let queryItems: [String: String]
+    public let queryItems: QueryItems
     public let method: HTTPMethod
     public let body: RequestBody
     public let cachePolicy: URLRequest.CachePolicy
@@ -27,7 +28,7 @@ public struct BaseAPIRouter<RequestBody: Sendable & Encodable, Response: Decodab
                 path: Path,
                 authType: AuthorizationType,
                 additionalHeaders: Headers = [:],
-                queryItems: [String: String] = [:],
+                queryItems: QueryItems = [:],
                 method: HTTPMethod = .get,
                 body: RequestBody,
                 cachePolicy: URLRequest.CachePolicy = .reloadIgnoringCacheData,
@@ -62,7 +63,7 @@ public extension BaseAPIRouter where RequestBody == EmptyCodable {
                 path: Path,
                 authType: AuthorizationType,
                 additionalHeaders: Headers = [:],
-                queryItems: [String: String] = [:],
+                queryItems: QueryItems = [:],
                 method: HTTPMethod = .get,
                 body: RequestBody,
                 cachePolicy: URLRequest.CachePolicy = .reloadIgnoringCacheData) {
