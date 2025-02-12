@@ -1,5 +1,10 @@
 # RouterBytes Changelog
 
+## [0.9.0] - 2025-02-12
+- Fully support Swift 6 compilation mode.
+- Require Response `T` in `APIServiceEventDelegate` to be `Sendable`
+- Support Ordered `QueryItems` in `APIRouter`
+
 ## [0.8.1] - 2024-12-10
 - Allow override `APIRouter.asURL(hostname:)`.
 - Mapped `NSURLErrorCancelled` to `CancellationError`.
