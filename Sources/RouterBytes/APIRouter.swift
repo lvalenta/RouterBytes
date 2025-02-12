@@ -54,8 +54,10 @@ public protocol APIRouter<RequestBody>: Sendable {
     /// Additional headers to be added to the request headers for the API endpoint.
     /// Empty dictionary if not specified
     var additionalHeaders: Headers { get }
-    /// Query items to be added to the URL for the API endpoint.
+    /// Ordered Query items to be added to the URL for the API endpoint.
     /// Empty dictionary if not specified
+    ///
+    /// QueryItems are ordered since there may be backends that for some reason expect query items to be in specific order and do not work otherwise. Also improves testability
     var queryItems: QueryItems { get }
     /// The HTTP method for the API endpoint.
     /// .get by default
