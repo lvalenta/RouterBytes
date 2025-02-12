@@ -49,7 +49,7 @@ public protocol APIServiceEventDelegate: Sendable {
     /// Notifies the delegate that a response has been decoded.
     ///
     /// - Parameter value: The decoded value of type `T`.
-    func responseDecoded<T>(_ value: T)
+    func responseDecoded<T: Sendable>(_ value: T)
 
     /// Notifies the delegate that a request failed with an unauthorized error.
     ///
@@ -68,7 +68,7 @@ public extension APIServiceEventDelegate {
 
     /// Default implementation of `responseDecoded(_:)`.
     @inlinable
-    func responseDecoded<T>(_ value: T) { }
+    func responseDecoded<T: Sendable>(_ value: T) { }
 
     /// Default implementation of `requestFailedWithUnAuthorizedError(router:)`.
     @inlinable

@@ -8,7 +8,7 @@
 import Foundation
 import RouterBytes
 
-public final class MockAPIService: RouterBytes.APIRouterServiceType {
+public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked Sendable {
     public typealias AuthorizationType = RouterBytes.AuthorizationType
     
     private var responsesOnRouter: [ObjectIdentifier: (any APIRouter) async throws -> (Any)] = [:]

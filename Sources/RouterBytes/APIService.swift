@@ -123,7 +123,7 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
     }
 
     @inlinable
-    final public func getDecodedHeaderResponse<T: Decodable>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T {
+    final public func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T {
         guard let httpResponse = response as? HTTPURLResponse else { throw ResponseValidationError.notHTTPURLResponse }
         let serialization = try JSONSerialization.data(withJSONObject: httpResponse.allHeaderFields, options: [])
 
@@ -264,7 +264,7 @@ open class APIService<NetworkingService: NetworkingServiceType>: @unchecked Send
         self.eventDelegate = eventDelegate
     }
 
-    final public func getDecoded<T: Decodable>(from data: Data, decode: (T.Type, Data) throws -> T) throws -> T {
+    final public func getDecoded<T: Decodable & Sendable>(from data: Data, decode: (T.Type, Data) throws -> T) throws -> T {
         let decoded: T = try decode(T.self, data)
         
         eventDelegate?.responseDecoded(decoded)
