@@ -6,8 +6,10 @@
 //
 
 import Foundation
+import OrderedCollections
 
 public typealias Headers = [String: String]
+public typealias QueryItems = OrderedDictionary<String, String>
 
 /**
  A type representing a request for a remote API resource.
@@ -54,7 +56,7 @@ public protocol APIRouter<RequestBody>: Sendable {
     var additionalHeaders: Headers { get }
     /// Query items to be added to the URL for the API endpoint.
     /// Empty dictionary if not specified
-    var queryItems: [String: String] { get }
+    var queryItems: QueryItems { get }
     /// The HTTP method for the API endpoint.
     /// .get by default
     var method: HTTPMethod { get }
@@ -74,7 +76,7 @@ public protocol APIRouter<RequestBody>: Sendable {
 
 public extension APIRouter {
     var additionalHeaders: [String: String] { [:] }
-    var queryItems: [String: String] { [:] }
+    var queryItems: QueryItems { [:] }
     var method: HTTPMethod { .get }
     var cachePolicy: URLRequest.CachePolicy { .reloadIgnoringCacheData }
 
