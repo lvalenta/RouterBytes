@@ -9,7 +9,7 @@ import XCTest
 import RouterBytesAuthentication
 import RouterBytes
 
-fileprivate var dateProvider = DateProviderMock(date: Date())
+nonisolated(unsafe) fileprivate var dateProvider = DateProviderMock(date: Date())
 
 @available(iOS 15.0, *)
 open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: XCTestCase {
@@ -69,7 +69,7 @@ open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: X
     func refreshingHelper(signedInTokenExpiration: Date,
                           forceRefresh: Bool,
                           executeBeforeCheck: (() async throws -> Void)? = nil,
-                          file: StaticString = #file,
+                          file: StaticString = #filePath,
                           line: UInt = #line) async throws {
         setLoggedIn(expiration: signedInTokenExpiration)
         
@@ -126,7 +126,7 @@ open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: X
             XCTFail(file: file, line: line)
         }
 
-        wait(for: [expectation], timeout: 0.1)
+        await fulfillment(of: [expectation])
     }
 }
     

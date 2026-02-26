@@ -85,7 +85,7 @@ final class APIRouterServiceTests: XCTestCase {
             XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
 
             // Wait for expectations to be fulfilled
-            wait(for: [firstRequest, secondRequest], timeout: 1)
+            await fulfillment(of:[firstRequest, secondRequest])
         }
     }
 
@@ -129,7 +129,7 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
-        wait(for: [firstRequest, secondRequest], timeout: 1)
+        await fulfillment(of: [firstRequest, secondRequest])
     }
 
     func testRetryOnTimeout() async throws {
@@ -171,7 +171,7 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
-        wait(for: [firstRequest, secondRequest], timeout: 1)
+        await fulfillment(of: [firstRequest, secondRequest])
     }
 
     func testRetryOnAuthorizedError() async throws {
@@ -212,7 +212,7 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertTrue(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
-        wait(for: [firstRequest, secondRequest], timeout: 1)
+        await fulfillment(of: [firstRequest, secondRequest])
     }
 
     func testRetryAndFailureOnAuthorizedError() async throws {
@@ -251,7 +251,7 @@ final class APIRouterServiceTests: XCTestCase {
         }
         // Perform the data request, which should trigger token refreshing and retry the request
         // Wait for expectations to be fulfilled
-        wait(for: [firstRequest, secondRequest], timeout: 1)
+        await fulfillment(of: [firstRequest, secondRequest])
     }
 
     func testCancellationErrorMapping() async throws {
