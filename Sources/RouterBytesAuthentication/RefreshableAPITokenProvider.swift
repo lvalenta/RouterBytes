@@ -58,6 +58,15 @@ public actor RefreshableTokenProvider<
         _ = try await getAPIToken(forceRefresh: true)
     }
     
+    
+    /// Retrieves an access token, optionally forcing a refresh.
+    ///
+    /// - Parameter forceRefresh: Whether or not to force a refresh of the access token.
+    ///
+    /// - Returns: The access token.
+    ///
+    /// - Throws: `NotLoggedInError` if the user is not logged in
+    /// - Throws: `FailedWithUnAuthorizedError` if the refresh failed.
     private func getAPIToken(forceRefresh: Bool) async throws -> APIToken {
         // If a refresh is already in progress, await it — this is the key deduplication mechanism
         if let refreshingTask {
