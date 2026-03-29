@@ -11,6 +11,23 @@ import OrderedCollections
 public typealias Headers = [String: String]
 public typealias QueryItems = OrderedDictionary<String, String>
 
+public struct RetryOptions: OptionSet, Sendable {
+    public let rawValue: Int8
+
+    @inlinable
+    public init(rawValue: Int8) {
+        self.rawValue = rawValue
+    }
+
+    public static let retryOnTimeOut = RetryOptions(rawValue: 1 << 0)
+    public static let retryOnInvalidResponseCode = RetryOptions(rawValue: 1 << 1)
+
+    public static let `default`: RetryOptions = [
+        .retryOnTimeOut,
+        .retryOnInvalidResponseCode
+    ]
+}
+
 /**
  A type representing a request for a remote API resource.
 
@@ -69,6 +86,8 @@ public protocol APIRouter<RequestBody>: Sendable {
     var authType: AuthorizationType { get }
     /// The cache policy for the API request. Default: .get
     var cachePolicy: URLRequest.CachePolicy { get }
+    /// Retry behavior for recoverable failures. Default: timeout + invalid response code.
+    var retryOptions: RetryOptions { get }
 
     func encode(_ value: RequestBody) throws -> Data?
     func decode<T: Decodable>(_ type: T.Type, from data: Data) throws  -> T
@@ -81,6 +100,7 @@ public extension APIRouter {
     var queryItems: QueryItems { [:] }
     var method: HTTPMethod { .get }
     var cachePolicy: URLRequest.CachePolicy { .reloadIgnoringCacheData }
+    var retryOptions: RetryOptions { .default }
 
     /// Computed property that merges defaultHeaders and additionalHeaders
     @inlinable

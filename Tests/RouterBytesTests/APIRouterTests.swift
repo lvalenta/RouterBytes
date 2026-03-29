@@ -178,4 +178,17 @@ final class APIRouterTests: XCTestCase {
         XCTAssertEqual(urlRequest.httpBody, try JSONEncoder().encode(updateUserRequest))
         XCTAssertEqual(urlRequest.cachePolicy, .useProtocolCachePolicy)
     }
+
+    func testDefaultRetryOptions() {
+        let router = BaseAPIRouter<EmptyCodable, Data>(
+            hostname: URL(string: "https://example.com")!,
+            path: "/test",
+            authType: .none,
+            body: EmptyCodable()
+        )
+
+        XCTAssertEqual(router.retryOptions, RetryOptions.default)
+        XCTAssertTrue(router.retryOptions.contains(RetryOptions.retryOnTimeOut))
+        XCTAssertTrue(router.retryOptions.contains(RetryOptions.retryOnInvalidResponseCode))
+    }
 }

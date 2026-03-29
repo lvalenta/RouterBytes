@@ -174,6 +174,65 @@ final class APIRouterServiceTests: XCTestCase {
         await fulfillment(of: [firstRequest, secondRequest])
     }
 
+    func testNoRetryOnInvalidResponseCodeWhenDisabled() async throws {
+        let router = BaseAPIRouter<String, String>(
+            hostname: URL(string: "https://cleevio.com")!,
+            path: "/blog",
+            authType: .none,
+            body: "",
+            retryOptions: [.retryOnTimeOut]
+        )
+        let expectedRequest = try router.asURLRequest()
+        let invalidResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+        var requestCount = 0
+
+        networkingService.onDataCall = { request, _ in
+            requestCount += 1
+            XCTAssertEqual(request, expectedRequest)
+            return (Data(), invalidResponse)
+        }
+
+        do {
+            _ = try await apiService.getResponse(from: router)
+            XCTFail("Expected invalidResponseCode")
+        } catch ResponseValidationError.invalidResponseCode {
+            XCTAssertEqual(requestCount, 1)
+            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        } catch {
+            XCTFail("Expected invalidResponseCode, got \(error)")
+        }
+    }
+
+    func testNoRetryOnTimeoutWhenDisabled() async throws {
+        let router = BaseAPIRouter<String, String>(
+            hostname: URL(string: "https://cleevio.com")!,
+            path: "/blog",
+            authType: .none,
+            body: "",
+            retryOptions: [.retryOnInvalidResponseCode]
+        )
+        let expectedRequest = try router.asURLRequest()
+        var requestCount = 0
+
+        networkingService.onDataCall = { request, _ in
+            requestCount += 1
+            XCTAssertEqual(request, expectedRequest)
+            throw NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut, userInfo: nil)
+        }
+
+        do {
+            _ = try await apiService.getResponse(from: router)
+            XCTFail("Expected timeout error")
+        } catch let error as NSError {
+            XCTAssertEqual(error.domain, NSURLErrorDomain)
+            XCTAssertEqual(error.code, NSURLErrorTimedOut)
+            XCTAssertEqual(requestCount, 1)
+            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        } catch {
+            XCTFail("Expected NSError timeout, got \(error)")
+        }
+    }
+
     func testRetryOnAuthorizedError() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
         let expectedRequest = try router.asURLRequest()

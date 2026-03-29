@@ -20,6 +20,7 @@ public struct BaseAPIRouter<RequestBody: Sendable & Encodable, Response: Decodab
     public let method: HTTPMethod
     public let body: RequestBody
     public let cachePolicy: URLRequest.CachePolicy
+    public let retryOptions: RetryOptions
 
     public init(defaultHeaders: Headers = [:],
                 hostname: URL,
@@ -32,6 +33,7 @@ public struct BaseAPIRouter<RequestBody: Sendable & Encodable, Response: Decodab
                 method: HTTPMethod = .get,
                 body: RequestBody,
                 cachePolicy: URLRequest.CachePolicy = .reloadIgnoringCacheData,
+                retryOptions: RetryOptions = .default,
                 requestType: RequestBody.Type = RequestBody.self) {
         self.defaultHeaders = defaultHeaders
         self.hostname = hostname
@@ -44,6 +46,7 @@ public struct BaseAPIRouter<RequestBody: Sendable & Encodable, Response: Decodab
         self.method = method
         self.body = body
         self.cachePolicy = cachePolicy
+        self.retryOptions = retryOptions
     }
 
     public func encode(_ value: RequestBody) throws -> Data? {
@@ -66,7 +69,8 @@ public extension BaseAPIRouter where RequestBody == EmptyCodable {
                 queryItems: QueryItems = [:],
                 method: HTTPMethod = .get,
                 body: RequestBody,
-                cachePolicy: URLRequest.CachePolicy = .reloadIgnoringCacheData) {
+                cachePolicy: URLRequest.CachePolicy = .reloadIgnoringCacheData,
+                retryOptions: RetryOptions = .default) {
         self.defaultHeaders = defaultHeaders
         self.hostname = hostname
         self.jsonDecoder = jsonDecoder
@@ -78,5 +82,6 @@ public extension BaseAPIRouter where RequestBody == EmptyCodable {
         self.method = method
         self.body = body
         self.cachePolicy = cachePolicy
+        self.retryOptions = retryOptions
     }
 }
