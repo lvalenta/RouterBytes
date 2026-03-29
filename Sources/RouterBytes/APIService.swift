@@ -144,9 +144,9 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
     open func getData<RouterType: APIRouter>(for router: RouterType) async throws -> (Data, URLResponse) where RouterType.AuthorizationType == AuthorizationType {
         do {
             return try await getDataFromNetwork(for: try await getURLRequest(from: router))
-        }  catch let error as ResponseValidationError where error == .invalidResponseCode {
+        }  catch let error as ResponseValidationError where error == .invalidResponseCode && router.retryOptions.contains(.retryOnInvalidResponseCode) {
             return try await getDataFromNetwork(for: try await getURLRequest(from: router))
-        } catch let error as NSError where error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut {
+        } catch let error as NSError where error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut && router.retryOptions.contains(.retryOnTimeOut) {
             return try await getDataFromNetwork(for: try await getURLRequest(from: router))
         } catch let error as NSError where error.code == NSURLErrorCancelled {
             throw CancellationError()
