@@ -35,7 +35,7 @@ import Foundation
  ```
  */
 @available(macOS 12.0, *)
-open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServiceType, URLRequestProvider>: APIService<NetworkingService>, APIRouterServiceType, Sendable, @unchecked Sendable where URLRequestProvider: RouterBytes.URLRequestProvider<AuthorizationType> {
+open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServiceType, URLRequestProvider>: APIService<NetworkingService>, APIRouterServiceType, @unchecked Sendable where URLRequestProvider: RouterBytes.URLRequestProvider<AuthorizationType> {
     
     public final let urlRequestProvider: URLRequestProvider
     
