@@ -26,6 +26,10 @@ RouterBytes is a Swift package that provides Swift networking library based on `
 
 For detailed usage/examples check documentation.
 
+## Migration
+
+For `1.0.0` API changes (HTTP Types migration + `HeaderResponse` flow), see [Migration Guide](MIGRATION.md).
+
 ## Contributing
 
 Contributions to RouterBytes are welcome!
