@@ -29,6 +29,8 @@ Header-related API names were aligned with HTTP Types:
 | `asURLRequest(hostname:)` | `asHTTPRequest(hostname:)` |
 | `asURLRequest()` | `asHTTPRequest()` |
 
+Because of the change, Headers are no longer `Dictionary` of string key, but they can be represented as a `Dictionary` of `HTTPField.Name` and value of `String`. Extend `HTTPField.Name` to support it.
+
 `cachePolicy` is no longer part of `APIRouter`. Use `URLSessionConfiguration` instead.
 
 ### 3. Update Service/Provider Signatures
