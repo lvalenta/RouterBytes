@@ -111,7 +111,7 @@ final class PathTests: XCTestCase {
 
     func testStringInterpolation() {
         let testString = "test/test2"
-        var sut: Path = "\(testString)"
+        let sut: Path = "\(testString)"
 
         XCTAssertEqual("\(sut)", testString)
     }

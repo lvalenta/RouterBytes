@@ -122,13 +122,6 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
         return try getDecodedHeaderResponse(from: response, decode: router.decode)
     }
 
-    @inlinable
-    final public func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T {
-        guard let httpResponse = response as? HTTPURLResponse else { throw ResponseValidationError.notHTTPURLResponse }
-        let serialization = try JSONSerialization.data(withJSONObject: httpResponse.allHeaderFields, options: [])
-
-        return try getDecoded(from: serialization, decode: decode)
-    }
     /**
      Fetches data from the network for the specified `APIRouter`.
      
@@ -209,7 +202,9 @@ public protocol APIServiceType: Sendable {
      - Returns: A decoded object of the specified type.
      - Throws: An error if the decoding fails.
      */
-    func getDecoded<T: Decodable>(from data: Data, decode: (T.Type, Data) throws -> T) async throws -> T
+    func getDecoded<T: Decodable>(from data: Data, decode: (T.Type, Data) throws -> T) throws -> T
+
+    func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T
 
     /**
      Fetches data from the network using a given `URLRequest`.
@@ -282,7 +277,15 @@ open class APIService<NetworkingService: NetworkingServiceType>: @unchecked Send
         
         return (data, response)
     }
-    
+
+    @inlinable
+    final public func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T {
+        guard let httpResponse = response as? HTTPURLResponse else { throw ResponseValidationError.notHTTPURLResponse }
+        let serialization = try JSONSerialization.data(withJSONObject: httpResponse.allHeaderFields, options: [])
+
+        return try getDecoded(from: serialization, decode: decode)
+    }
+
     /**
      Checks the HTTP response for errors, throwing a `ResponseValidationError` if the response is invalid.
      

@@ -124,8 +124,16 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
         return try await dataFromNetworkProvider(request)
     }
 
-    public func getDecoded<T>(from data: Data, decode: (T.Type, Data) throws -> T) async throws -> T where T : Decodable {
+    public func getDecoded<T>(from data: Data, decode: (T.Type, Data) throws -> T) throws -> T where T : Decodable {
         try decode(T.self, data)
     }
-}
 
+    public func getDecodedHeaderResponse<T>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T where T: Decodable, T: Sendable {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ResponseValidationError.notHTTPURLResponse
+        }
+
+        let serialization = try JSONSerialization.data(withJSONObject: httpResponse.allHeaderFields, options: [])
+        return try getDecoded(from: serialization, decode: decode)
+    }
+}
