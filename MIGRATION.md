@@ -15,12 +15,7 @@ RouterBytes now uses `swift-http-types` abstractions across request/response API
 | `Headers` (`[String: String]`) | `HTTPFields` |
 | custom `HTTPMethod` struct | `HTTPRequest.Method` (`typealias HTTPMethod`) |
 
-If your app directly references these types, add imports:
-
-```swift
-import HTTPTypes
-import HTTPTypesFoundation
-```
+You do not need to import the types from HTTP Types.
 
 ### 2. Update `APIRouter` Conformance
 
@@ -34,13 +29,22 @@ Header-related API names were aligned with HTTP Types:
 | `asURLRequest(hostname:)` | `asHTTPRequest(hostname:)` |
 | `asURLRequest()` | `asHTTPRequest()` |
 
-`cachePolicy` is no longer part of `APIRouter`.
+`cachePolicy` is no longer part of `APIRouter`. Use `URLSessionConfiguration` instead.
 
 ### 3. Update Service/Provider Signatures
 
 `URLRequestProvider`, `APIServiceType`, `NetworkingServiceType`, and `APIServiceEventDelegate` now use `HTTPRequest`/`HTTPResponse`.
 
 Notable signature changes:
+
+| 0.10.x | 1.0.0 |
+| --- | --- |
+| `URLRequestProvider` | `HTTPRequestProvider` |
+| `BaseURLRequestProvider` | `BaseHTTPRequestProvider` |
+| `MockURLRequestProvider` | `MockHTTPRequestProvider` |
+| `getURLRequest(from:)` | `getHTTPRequest(from:)` |
+| `getURLRequestOnUnAuthorizedError(from:)` | `getHTTPRequestOnUnAuthorizedError(from:)` |
+| `APIRouterService(..., urlRequestProvider:, ...)` | `APIRouterService(..., httpRequestProvider:, ...)` |
 
 - `getDataFromNetwork(for:)` -> `getDataFromNetwork(for:body:)`
 - Delegate callbacks now include request body:
@@ -84,6 +88,7 @@ No change is required to the `associatedtype HeaderResponse` declaration itself,
 
 1. Rename `defaultHeaders` / `additionalHeaders` usages.
 2. Replace `URLRequest`/`URLResponse` in RouterBytes integration points with `HTTPRequest`/`HTTPResponse`.
-3. Update delegate and networking function signatures to include `body`.
-4. Migrate `ResponseValidationError` checks to `status`/`status.kind`.
-5. Decide whether to keep default retry behavior with `retryOnInternalError` enabled.
+3. Rename request provider types/methods to `HTTPRequestProvider` (`getHTTPRequest(...)` APIs).
+4. Update delegate and networking function signatures to include `body`.
+5. Migrate `ResponseValidationError` checks to `status`/`status.kind`.
+6. Decide whether to keep default retry behavior with `retryOnInternalError` enabled.

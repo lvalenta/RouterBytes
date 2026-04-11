@@ -13,8 +13,8 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
     public typealias AuthorizationType = RouterBytes.AuthorizationType
     
     private var responsesOnRouter: [ObjectIdentifier: (any APIRouter) async throws -> (Any)] = [:]
-    private var urlRequstsOnUnAuthorizedRouter: [ObjectIdentifier: (any APIRouter) async throws -> HTTPRequest] = [:]
-    private var urlRequestProviders: [ObjectIdentifier: (Any) async throws -> HTTPRequest] = [:]
+    private var httpRequestsOnUnAuthorizedRouter: [ObjectIdentifier: (any APIRouter) async throws -> HTTPRequest] = [:]
+    private var httpRequestProviders: [ObjectIdentifier: (Any) async throws -> HTTPRequest] = [:]
     private var decodedProviders: [ObjectIdentifier: (Any) async throws -> Any] = [:]
     private var dataFromNetworkProviders: [RequestBodyKey: (HTTPRequest, Data?) async throws -> (Data, HTTPResponse)] = [:]
     private var dataProviders: [ObjectIdentifier: (Any) async throws -> (Data, HTTPResponse)] = [:]
@@ -26,8 +26,8 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
 
     public init() { }
 
-    public func registerURLRequestResponseOnUnAuthorizedRouter<Router: RouterBytes.APIRouter>(router: Router, response: @escaping (Router) -> HTTPRequest) {
-        urlRequstsOnUnAuthorizedRouter[ObjectIdentifier(Router.self)] = { router in
+    public func registerHTTPRequestResponseOnUnAuthorizedRouter<Router: RouterBytes.APIRouter>(router: Router, response: @escaping (Router) -> HTTPRequest) {
+        httpRequestsOnUnAuthorizedRouter[ObjectIdentifier(Router.self)] = { router in
             response(router as! Router)
         }
     }
@@ -38,21 +38,21 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
     ) {
         dataProviders[ObjectIdentifier(routerType)] = { router in
             guard let router = router as? Router else {
-                fatalError("URL Request provider not registered")
+                fatalError("HTTP request provider not registered")
             }
             return try dataProvider(router)
         }
     }
     
-    public func registerURLRequestProvider<Router: RouterBytes.APIRouter>(
+    public func registerHTTPRequestProvider<Router: RouterBytes.APIRouter>(
         for routerType: Router.Type,
-        urlRequestProvider: @escaping (Router) throws -> HTTPRequest
+        httpRequestProvider: @escaping (Router) throws -> HTTPRequest
     ) {
-        urlRequestProviders[ObjectIdentifier(routerType)] = { router in
+        httpRequestProviders[ObjectIdentifier(routerType)] = { router in
             guard let router = router as? Router else {
-                fatalError("URL Request provider not registered")
+                fatalError("HTTP request provider not registered")
             }
-            return try urlRequestProvider(router)
+            return try httpRequestProvider(router)
         }
     }
     
@@ -62,7 +62,7 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
     ) {
         decodedProviders[ObjectIdentifier(routerType)] = { router in
             guard let router = router as? Router else {
-                fatalError("URL Request provider not registered")
+                fatalError("HTTP request provider not registered")
             }
             return try decodedProvider(router)
         }
@@ -101,15 +101,15 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
         fatalError("Needs to be implemented") // TODO:
     }
     
-    public func getURLRequest<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
-        guard let urlRequestProvider = urlRequestProviders[ObjectIdentifier(RouterType.self)] else {
+    public func getHTTPRequest<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
+        guard let httpRequestProvider = httpRequestProviders[ObjectIdentifier(RouterType.self)] else {
             fatalError("DataProvider not registered")
         }
-        return try await urlRequestProvider(router)
+        return try await httpRequestProvider(router)
     }
     
-    public func getURLRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
-        guard let response = urlRequstsOnUnAuthorizedRouter[ObjectIdentifier(RouterType.self)] else {
+    public func getHTTPRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
+        guard let response = httpRequestsOnUnAuthorizedRouter[ObjectIdentifier(RouterType.self)] else {
             fatalError("Response not registered")
         }
 

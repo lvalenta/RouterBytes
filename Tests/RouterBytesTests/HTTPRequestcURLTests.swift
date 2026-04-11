@@ -1,5 +1,5 @@
 //
-//  URLRequestcURLTests.swift
+//  HTTPRequestcURLTests.swift
 //  
 //
 //  Created by Lukáš Valenta on 30.04.2023.
@@ -9,7 +9,7 @@ import Foundation
 import XCTest
 import RouterBytes
 
-class URLRequestcURLTests: XCTestCase {
+class HTTPRequestcURLTests: XCTestCase {
     let url = URL(string: "https://www.example.com")!
     var request: HTTPRequest!
     var body: Data?

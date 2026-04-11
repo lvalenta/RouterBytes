@@ -11,17 +11,17 @@ import RouterBytes
 @available(iOS 15.0, *)
 final class APIRouterServiceTests: XCTestCase {
     var networkingService: NetworkingServiceMock!
-    var apiService: APIRouterService<AuthorizationType, NetworkingServiceMock, MockURLRequestProvider<AuthorizationType>>!
+    var apiService: APIRouterService<AuthorizationType, NetworkingServiceMock, MockHTTPRequestProvider<AuthorizationType>>!
     var delegate: MockAPIServiceEventDelegate!
-    var mockURLRequestProvider: MockURLRequestProvider<AuthorizationType>!
+    var mockHTTPRequestProvider: MockHTTPRequestProvider<AuthorizationType>!
     
     override func setUp() {
         super.setUp()
         
         networkingService = NetworkingServiceMock()
         delegate = MockAPIServiceEventDelegate()
-        mockURLRequestProvider = MockURLRequestProvider(hostname: URL(string: "https://cleevio.com")!)
-        apiService = APIRouterService(networkingService: networkingService, urlRequestProvider: mockURLRequestProvider, eventDelegate: delegate)
+        mockHTTPRequestProvider = MockHTTPRequestProvider(hostname: URL(string: "https://cleevio.com")!)
+        apiService = APIRouterService(networkingService: networkingService, httpRequestProvider: mockHTTPRequestProvider, eventDelegate: delegate)
     }
     
     override func tearDown() {
@@ -81,8 +81,8 @@ final class APIRouterServiceTests: XCTestCase {
             XCTAssertEqual(delegate.receivedResponse, receivedResponse)
             XCTAssertEqual(delegate.firedRequest, expectedRequest)
             XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
-            XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
             // Wait for expectations to be fulfilled
             await fulfillment(of:[firstRequest, secondRequest])
@@ -125,8 +125,8 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertEqual(delegate.firedRequest, expectedRequest)
         XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
         XCTAssertNotNil(delegate.decodedValue as? String)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-        XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+        XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
         await fulfillment(of: [firstRequest, secondRequest])
@@ -167,8 +167,8 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertEqual(delegate.firedRequest, expectedRequest)
         XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
         XCTAssertNotNil(delegate.decodedValue as? String)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-        XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+        XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
         await fulfillment(of: [firstRequest, secondRequest])
@@ -197,7 +197,7 @@ final class APIRouterServiceTests: XCTestCase {
             XCTFail("Expected invalidResponseCode")
         } catch let error as ResponseValidationError where error.status.kind == .informational || error.status.kind == .invalid {
             XCTAssertEqual(requestCount, 1)
-            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
         } catch {
             XCTFail("Expected invalidResponseCode, got \(error)")
         }
@@ -233,7 +233,7 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertEqual(requestCount, 2)
         XCTAssertEqual(response, expectedData)
         XCTAssertEqual(delegate.receivedResponse, receivedSuccessResponse)
-        XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
     }
 
     func testNoRetryOnInternalErrorWhenRetryOnInternalErrorDisabled() async throws {
@@ -258,7 +258,7 @@ final class APIRouterServiceTests: XCTestCase {
             XCTFail("Expected internal error")
         } catch let error as ResponseValidationError where error.status.kind == .serverError {
             XCTAssertEqual(requestCount, 1)
-            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
         } catch {
             XCTFail("Expected internal error, got \(error)")
         }
@@ -288,7 +288,7 @@ final class APIRouterServiceTests: XCTestCase {
             XCTAssertEqual(error.domain, NSURLErrorDomain)
             XCTAssertEqual(error.code, NSURLErrorTimedOut)
             XCTAssertEqual(requestCount, 1)
-            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
         } catch {
             XCTFail("Expected NSError timeout, got \(error)")
         }
@@ -328,8 +328,8 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertEqual(delegate.firedRequest, expectedRequest)
         XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
         XCTAssertNotNil(delegate.decodedValue as? String)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
         await fulfillment(of: [firstRequest, secondRequest])
@@ -364,8 +364,8 @@ final class APIRouterServiceTests: XCTestCase {
             XCTAssertEqual(delegate.receivedResponse, receivedResponse)
             XCTAssertEqual(delegate.firedRequest, expectedRequest)
             XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
-            XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-            XCTAssertTrue(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+            XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
         } catch {
             XCTFail("Received different error than expected: \(error)")
         }

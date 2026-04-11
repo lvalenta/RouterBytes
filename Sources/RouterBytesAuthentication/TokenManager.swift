@@ -12,14 +12,14 @@ import CleevioStorage
 public struct NotLoggedInError: Error, Hashable { public init() { } }
 
 @available(macOS 10.15.0, *)
-public typealias TokenManager = TokenProviderWrappedURLRequestProvider
+public typealias TokenManager = TokenProviderWrappedHTTPRequestProvider
 
 @available(macOS 10.15.0, *)
-public struct TokenProviderWrappedURLRequestProvider<
+public struct TokenProviderWrappedHTTPRequestProvider<
     AuthorizationType: APITokenAuthorizationType,
     HostnameProvider: RouterBytes.HostnameProvider,
     APITokenProvider: RouterBytesAuthentication.APITokenProvider
->: URLRequestProvider {
+>: HTTPRequestProvider {
     public let hostnameProvider: HostnameProvider
     public let tokenProvider: APITokenProvider
 
@@ -28,14 +28,14 @@ public struct TokenProviderWrappedURLRequestProvider<
         self.tokenProvider = tokenProvider
     }
 
-    public func getURLRequest<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
+    public func getHTTPRequest<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
         let request = try router.asHTTPRequest(hostname: hostnameProvider.hostname(for: router))
 
         return try await router.authType.authorizedRequest(request: request, with: tokenProvider)
     }
 
-    public func getURLRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
+    public func getHTTPRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
         try await tokenProvider.attemptAPITokenRefresh()
-        return try await getURLRequest(from: router)
+        return try await getHTTPRequest(from: router)
     }
 }

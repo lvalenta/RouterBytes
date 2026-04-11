@@ -1,5 +1,5 @@
 //
-//  URLRequest+cURL.swift
+//  HTTPRequest+cURL.swift
 //  
 //
 //  Created by Lukáš Valenta on 30.04.2023.
@@ -9,15 +9,15 @@ import Foundation
 import HTTPTypes
 
 public extension HTTPRequest {
-    /// Returns a string representation of the URLRequest in cURL format.
+    /// Returns a string representation of the HTTPRequest in cURL format.
     ///
     /// - Parameter pretty: A flag that indicates whether to include newlines in the output.
     ///                     When `true`, the output is formatted with newlines for improved readability.
     ///                     The default value is `false`.
     ///
-    /// - Returns: A string representation of the URLRequest in cURL format.
+    /// - Returns: A string representation of the HTTPRequest in cURL format.
     ///
-    /// - Note: This function generates a cURL command that mimics the original URLRequest, including headers and
+    /// - Note: This function generates a cURL command that mimics the original HTTPRequest, including headers and
     ///         the request method. The generated cURL command can be copied and executed in a shell environment,
     ///         allowing you to reproduce the original request.
     ///

@@ -3,6 +3,7 @@
 ## [1.0.0] - 2026-04-11
 - Migrated RouterBytes networking primitives to Swift HTTP Types (`HTTPRequest`, `HTTPResponse`, `HTTPFields`, `HTTPMethod`).
 - Updated Router/Service/Provider/Delegate APIs to use HTTP Types end-to-end.
+- Renamed URLRequest-based provider APIs to HTTPRequest naming (`HTTPRequestProvider`, `BaseHTTPRequestProvider`, `MockHTTPRequestProvider`, `getHTTPRequest(...)`).
 - Improved `ResponseValidationError` to use `HTTPResponse.Status`.
 - Kept first-class `HeaderResponse` support in the migrated HTTP Types flow.
 - Added `RetryOptions.retryOnInternalError` and enabled it in `RetryOptions.default`.

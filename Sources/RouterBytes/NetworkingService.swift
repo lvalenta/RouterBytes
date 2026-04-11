@@ -33,7 +33,7 @@ public protocol NetworkingServiceType: Sendable {
     /// Empties all cookies, caches and credential stores, removes disk files, flushes in-progress downloads to disk, and ensures that future requests occur on a new socket.
     func reset() async
 
-    /// Downloads the contents of a URL based on the specified URL request and delivers the data asynchronously.
+    /// Downloads the contents of a URL based on the specified HTTP request and delivers the data asynchronously.
     ///
     /// Use this method to wait until the session finishes transferring data and receive it in a single Data instance. To process the bytes as the session receives them, use `bytes(for:)`.
     ///
@@ -43,7 +43,7 @@ public protocol NetworkingServiceType: Sendable {
     /// - Returns: An asynchronously-delivered tuple that contains the URL contents as a `Data` instance and an `HTTPResponse`.
     func data(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse)
 
-    /// Downloads the contents of a URL based on the specified URL request and delivers the data asynchronously.
+    /// Downloads the contents of a URL based on the specified HTTP request and delivers the data asynchronously.
     ///
     /// Use this method to wait until the session finishes transferring data and receive it in a single Data instance. To process the bytes as the session receives them, use `bytes(for:delegate:)`.
     ///
@@ -55,7 +55,7 @@ public protocol NetworkingServiceType: Sendable {
     @available(iOS 15.0, *)
     func data(for request: HTTPRequest, body: Data?, delegate: URLSessionTaskDelegate?) async throws -> (Data, HTTPResponse)
 
-    /// Retrieves the contents of a URL based on the specified URL request and delivers an asynchronous sequence of bytes.
+    /// Retrieves the contents of a URL based on the specified HTTP request and delivers an asynchronous sequence of bytes.
     ///
     /// Use this method when you want to process the bytes while the transfer is underway. You can use a for-await-in loop to handle each byte. For textual data, use the URLSession.AsyncBytes properties characters, unicodeScalars, or lines to receive the content as asynchronous sequences of those types.
     /// To wait until the session finishes transferring data and receive it in a single Data instance, use `data(for:delegate:)`.
@@ -65,7 +65,7 @@ public protocol NetworkingServiceType: Sendable {
 
 @available(macOS 12.0, *)
 public extension NetworkingServiceType {
-    /// Retrieves the contents of a URL based on the specified URL request and delivers an asynchronous sequence of bytes.
+    /// Retrieves the contents of a URL based on the specified HTTP request and delivers an asynchronous sequence of bytes.
     ///
     /// Use this method when you want to process the bytes while the transfer is underway. You can use a for-await-in loop to handle each byte. For textual data, use the URLSession.AsyncBytes properties characters, unicodeScalars, or lines to receive the content as asynchronous sequences of those types.
     /// To wait until the session finishes transferring data and receive it in a single Data instance, use `data(for:delegate:)`.
@@ -80,9 +80,14 @@ public extension NetworkingServiceType {
 extension URLSession: NetworkingServiceType {
     @inlinable
     public func data(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse) {
-        try await data(for: request, body: body, delegate: nil)
+        if let body {
+            return try await upload(for: request, from: body)
+        }
+
+        return try await data(for: request)
     }
 
+    @available(iOS 15.0, *)
     @inlinable
     public func data(for request: HTTPRequest, body: Data?, delegate: URLSessionTaskDelegate?) async throws -> (Data, HTTPResponse) {
         if let body {

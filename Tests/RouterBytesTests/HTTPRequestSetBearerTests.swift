@@ -1,5 +1,5 @@
 //
-//  URLRequestSetBearerTests.swift
+//  HTTPRequestSetBearerTests.swift
 //  
 //
 //  Created by Lukáš Valenta on 01.05.2023.
@@ -8,7 +8,7 @@
 import XCTest
 import RouterBytes
 
-final class URLRequestSetBearerTests: XCTestCase {
+final class HTTPRequestSetBearerTests: XCTestCase {
     func testSetBearerToken() throws {
         var request = HTTPRequest(method: .get, url: URL(string: "https://example.com/api")!)
         request.setBearerToken("abc123")
