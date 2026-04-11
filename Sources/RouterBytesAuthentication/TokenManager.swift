@@ -28,13 +28,13 @@ public struct TokenProviderWrappedURLRequestProvider<
         self.tokenProvider = tokenProvider
     }
 
-    public func getURLRequest<RouterType>(from router: RouterType) async throws -> URLRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
-        var urlRequest: URLRequest { get throws { try router.asURLRequest(hostname: hostnameProvider.hostname(for: router)) } }
+    public func getURLRequest<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : RouterBytes.APIRouter, AuthorizationType == RouterType.AuthorizationType {
+        let request = try router.asHTTPRequest(hostname: hostnameProvider.hostname(for: router))
 
-        return try await router.authType.authorizedRequest(urlRequest: try urlRequest, with: tokenProvider)
+        return try await router.authType.authorizedRequest(request: request, with: tokenProvider)
     }
 
-    public func getURLRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> URLRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
+    public func getURLRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
         try await tokenProvider.attemptAPITokenRefresh()
         return try await getURLRequest(from: router)
     }

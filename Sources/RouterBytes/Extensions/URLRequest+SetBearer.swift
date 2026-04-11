@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import HTTPTypes
 
-public extension URLRequest {
+public extension HTTPRequest {
     /// Sets a bearer token in the `Authorization` header field of the request.
     ///
     /// - Parameter token: A string containing the bearer token to be set in the Authorization header field.
@@ -23,14 +24,14 @@ public extension URLRequest {
     /// ```
     @inlinable
     mutating func setBearerToken(_ token: String) {
-        setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        headerFields[.authorization] = "Bearer \(token)"
     }
 
     
-    /// Returns a new URLRequest instance with the specified bearer token set in its Authorization header field.
+    /// Returns a new request instance with the specified bearer token set in its Authorization header field.
     ///
     /// Parameter token: A string containing the bearer token to be set in the Authorization header field.
-    /// Returns: A new URLRequest instance with the Authorization header field set to "Bearer {token}".
+    /// Returns: A new request instance with the Authorization header field set to "Bearer {token}".
     ///
     /// - Warning: If the `Authorization` header field is already set, calling this method will overwrite its value.
     ///
@@ -40,7 +41,7 @@ public extension URLRequest {
     /// request.setBearerToken("abc123")
     /// ```
     @inlinable
-    func withBearerToken(_ token: String) -> URLRequest {
+    func withBearerToken(_ token: String) -> HTTPRequest {
         var request = self
         request.setBearerToken(token)
         

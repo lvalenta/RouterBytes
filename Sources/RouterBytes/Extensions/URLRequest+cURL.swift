@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import HTTPTypes
 
-public extension URLRequest {
+public extension HTTPRequest {
     /// Returns a string representation of the URLRequest in cURL format.
     ///
     /// - Parameter pretty: A flag that indicates whether to include newlines in the output.
@@ -25,30 +26,30 @@ public extension URLRequest {
     ///
     /// - Warning: This function may expose sensitive data, such as authentication tokens, in the generated cURL output.
     ///
-    func cURL(pretty: Bool = false) -> String {
+    func cURL(body: Data? = nil, pretty: Bool = false) -> String {
         let newLine = pretty ? "\\\n" : " "
         lazy var newLineCount = newLine.count
-        let method = (pretty ? "--request " : "-X ") + "\(self.httpMethod ?? "GET")"
-        let url: String = (pretty ? "--url " : "") + "\'\(self.url?.absoluteString ?? "")\'"
+        let methodOption = (pretty ? "--request " : "-X ") + self.method.rawValue
+        let urlOption: String = (pretty ? "--url " : "") + "\'\(self.url?.absoluteString ?? "")\'"
         
         var cURL = "curl "
         var header = ""
         var data: String = ""
         
-        if let headers = allHTTPHeaderFields, !headers.isEmpty {
-            for (key,value) in headers {
-                header += (pretty ? "--header " : " -H ") + "\'\(key): \(value)\'\(newLine)"
-            }
+        for field in headerFields {
+            header += (pretty ? "--header " : " -H ") + "\'\(field.name.rawName): \(field.value)\'\(newLine)"
+        }
 
+        if !header.isEmpty {
             header.removeLast(newLineCount)
         }
         
 
-        if let body = httpBody?.asJSONString(pretty: pretty), !body.isEmpty {
+        if let body = body?.asJSONString(pretty: pretty), !body.isEmpty {
             data = "--data '\(body)'"
         }
         
-        cURL += "\(method)\(method.isEmpty ? "" : newLine)\(url)\(pretty ? "\\\n" : "")\(header)\(header.isEmpty ?  "" : newLine)\(data)"
+        cURL += "\(methodOption)\(methodOption.isEmpty ? "" : newLine)\(urlOption)\(pretty ? "\\\n" : "")\(header)\(header.isEmpty ?  "" : newLine)\(data)"
         
         let endsWithNewLine = cURL.suffix(newLineCount) == newLine
         

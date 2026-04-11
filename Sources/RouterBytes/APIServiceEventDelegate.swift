@@ -15,11 +15,11 @@ import Foundation
 /// struct MyAPIServiceDelegate: APIServiceEventDelegate {
 ///     var logoutAction: (() async -> Void)?
 ///
-///     func requestFired(request: URLRequest) {
-///         log.info(request.cURL(pretty: true))
+///     func requestFired(request: HTTPRequest, body: Data?) {
+///         log.info(request.cURL(body: body, pretty: true))
 ///     }
 ///
-///     func responseReceived(from request: URLRequest, data: Data, response: URLResponse) {
+///     func responseReceived(from request: HTTPRequest, body: Data?, data: Data, response: HTTPResponse) {
 ///         log.debug("Request: \(request)\nResponse: \(data.asString(pretty: true) ?? "could not parse")")
 ///     }
 ///
@@ -27,8 +27,8 @@ import Foundation
 ///         log.debug(value)
 ///     }
 ///
-///     func requestFailedWithUnAuthorizedError(request: URLRequest) async {
-///         log.error("Request failed with unAuthorizedError: \(request)")
+///     func requestFailedWithUnAuthorizedError(router: some APIRouter) async {
+///         log.error("Request failed with unAuthorizedError: \(router)")
 ///         await logoutAction?()
 ///     }
 /// }
@@ -36,15 +36,18 @@ import Foundation
 public protocol APIServiceEventDelegate: Sendable {
     /// Notifies the delegate that a network request has been fired.
     ///
-    /// - Parameter request: The URLRequest instance that was fired.
-    func requestFired(request: URLRequest)
+    /// - Parameter request: The HTTP request instance that was fired.
+    /// - Parameter body: Optional HTTP body associated with the request.
+    func requestFired(request: HTTPRequest, body: Data?)
 
     /// Notifies the delegate that a network response has been received.
     ///
     /// - Parameters:
+    ///   - request: The HTTP request instance that was fired.
+    ///   - body: Optional HTTP body associated with the request.
     ///   - data: The data returned in the response.
-    ///   - response: The URLResponse object for the response.
-    func responseReceived(from request: URLRequest, data: Data, response: URLResponse)
+    ///   - response: The `HTTPResponse` object for the response.
+    func responseReceived(from request: HTTPRequest, body: Data?, data: Data, response: HTTPResponse)
 
     /// Notifies the delegate that a response has been decoded.
     ///
@@ -60,11 +63,11 @@ public protocol APIServiceEventDelegate: Sendable {
 public extension APIServiceEventDelegate {
     /// Default implementation of `requestFired(request:)`.
     @inlinable
-    func requestFired(request: URLRequest) { }
+    func requestFired(request: HTTPRequest, body: Data?) { }
 
     /// Default implementation of `responseReceived(data:response:)`.
     @inlinable
-    func responseReceived(from request: URLRequest, data: Data, response: URLResponse) { }
+    func responseReceived(from request: HTTPRequest, body: Data?, data: Data, response: HTTPResponse) { }
 
     /// Default implementation of `responseDecoded(_:)`.
     @inlinable

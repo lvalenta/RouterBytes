@@ -65,9 +65,12 @@ final class HTTPMethodTests: XCTestCase {
         XCTAssertNotEqual(HTTPMethod.get.hashValue, HTTPMethod.post.hashValue)
     }
     
-    func testExpressibleByStringLiteral() {
-        let method: HTTPMethod = "TEST"
+    func testInitFromString() throws {
+        let method = try XCTUnwrap(HTTPMethod("TEST"))
         XCTAssertEqual(method.rawValue, "TEST")
     }
-}
 
+    func testInitFromInvalidString() {
+        XCTAssertNil(HTTPMethod("in valid"))
+    }
+}

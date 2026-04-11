@@ -39,13 +39,16 @@ let package = Package(
         .package(url: "https://github.com/cleevio/CleevioCore.git", .upToNextMajor(from: .init(2, 1, 7))),
         .package(url: "https://github.com/cleevio/CleevioStorage.git", .upToNextMajor(from: .init(0, 4, 2))),
         .package(url: "https://github.com/apple/swift-collections.git", from: .init(1, 1, 1)),
+        .package(url: "https://github.com/apple/swift-http-types.git", from: .init(1, 5, 1)),
     ],
     targets: [
         .target(
             name: "RouterBytes",
             dependencies: [
                 .product(name: "CleevioCore", package: "CleevioCore"),
-                .product(name: "OrderedCollections", package: "swift-collections")
+                .product(name: "OrderedCollections", package: "swift-collections"),
+                .product(name: "HTTPTypes", package: "swift-http-types"),
+                .product(name: "HTTPTypesFoundation", package: "swift-http-types")
             ],
             swiftSettings: swiftSettings
         ),

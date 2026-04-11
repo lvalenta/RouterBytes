@@ -6,13 +6,14 @@
 //
 
 import Foundation
+import HTTPTypes
 
 /**
  `APIRouterService` is a class responsible for making network requests and decoding responses. It uses an implementation of the `NetworkingServiceType` protocol to perform the network requests and an implementation of the `URLRequestProvider` protocol to create URL requests for the network requests.
  
  To use `APIRouterService`, subclass it and override its methods as needed. The most commonly used method is `getResponse`, which fetches data from the network. You pass an implementation of the `APIRouter` to `getResponse`, and it returns the decoded fetched data.
  
- `APIRouterService` supports retry functionality in the `getData` method. If the network request fails due to an invalid response code or a timeout error, it will retry the request once. This behavior helps improve the reliability of data retrieval.
+ `APIRouterService` supports retry functionality in the `getData` method. If the network request fails due to an invalid response code, an internal/server error, or a timeout error, it will retry the request once. This behavior helps improve the reliability of data retrieval.
  
  The class also provides an optional `APIServiceEventDelegate` that can be used to receive events from the `APIRouterService` object, such as progress updates and response decoding notifications. If the network request fails with an unauthorized error, it will attempt to fetch the data again using the `getSignedURLRequestOnUnAuthorizedError(from:)` method, and notify the event delegate if the second attempt also fails.
  
@@ -125,7 +126,7 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
     /**
      Fetches data from the network for the specified `APIRouter`.
      
-     This method fetches the data from the network using the `URLRequest` created by the `getSignedURLRequest(from:)` method of the given `APIRouter`. The method also supports retry functionality, improving the reliability of data retrieval by retrying the request once if it fails due to an invalid response code or a timeout error. If the request fails with an unauthorized error, it will attempt to fetch the data again using the `getSignedURLRequestOnUnAuthorizedError(from:)` method, and notify the event delegate if the second attempt also fails.
+     This method fetches the data from the network using the `URLRequest` created by the `getSignedURLRequest(from:)` method of the given `APIRouter`. The method also supports retry functionality, improving the reliability of data retrieval by retrying the request once if it fails due to an invalid response code, an internal/server error, or a timeout error. If the request fails with an unauthorized error, it will attempt to fetch the data again using the `getSignedURLRequestOnUnAuthorizedError(from:)` method, and notify the event delegate if the second attempt also fails.
      
      - Parameter router: The `APIRouter` object representing the network request.
      - Returns: The data fetched from the network.
@@ -134,21 +135,25 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
      */
     @discardableResult
     @inlinable
-    open func getData<RouterType: APIRouter>(for router: RouterType) async throws -> (Data, URLResponse) where RouterType.AuthorizationType == AuthorizationType {
+    open func getData<RouterType: APIRouter>(for router: RouterType) async throws -> (Data, HTTPResponse) where RouterType.AuthorizationType == AuthorizationType {
+        let body = try router.encodedBody()
+
         do {
-            return try await getDataFromNetwork(for: try await getURLRequest(from: router))
-        }  catch let error as ResponseValidationError where error == .invalidResponseCode && router.retryOptions.contains(.retryOnInvalidResponseCode) {
-            return try await getDataFromNetwork(for: try await getURLRequest(from: router))
+            return try await getDataFromNetwork(for: try await getURLRequest(from: router), body: body)
+        } catch let error as ResponseValidationError where error.status.kind == .serverError && router.retryOptions.contains(.retryOnInternalError) {
+            return try await getDataFromNetwork(for: try await getURLRequest(from: router), body: body)
+        } catch let error as ResponseValidationError where (error.status.kind == .informational || error.status.kind == .invalid) && router.retryOptions.contains(.retryOnInvalidResponseCode) {
+            return try await getDataFromNetwork(for: try await getURLRequest(from: router), body: body)
         } catch let error as NSError where error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut && router.retryOptions.contains(.retryOnTimeOut) {
-            return try await getDataFromNetwork(for: try await getURLRequest(from: router))
+            return try await getDataFromNetwork(for: try await getURLRequest(from: router), body: body)
         } catch let error as NSError where error.code == NSURLErrorCancelled {
             throw CancellationError()
         } catch let error as NSError where error.code == -1009 {
             throw URLError(.notConnectedToInternet)
-        } catch ResponseValidationError.unauthorized {
+        } catch let error as ResponseValidationError where error.status == .unauthorized {
             do {
                 let request = try await getURLRequestOnUnAuthorizedError(from: router)
-                return try await getDataFromNetwork(for: request)
+                return try await getDataFromNetwork(for: request, body: body)
             } catch {
                 await eventDelegate?.requestFailedWithUnAuthorizedError(router: router)
                 throw error
@@ -170,7 +175,7 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
      - Note: `RouterType.AuthorizationType` must match the `AuthorizationType` of the `APIService` instance.
      */
     @inlinable
-    final public func getURLRequest<RouterType: APIRouter>(from router: RouterType) async throws -> URLRequest where RouterType.AuthorizationType == AuthorizationType {
+    final public func getURLRequest<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType {
         try await urlRequestProvider.getURLRequest(from: router)
     }
     
@@ -185,7 +190,7 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
      - Note: `RouterType.AuthorizationType` must match the `AuthorizationType` of the `APIService` instance.
      */
     @inlinable
-    final public func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> URLRequest where RouterType.AuthorizationType == AuthorizationType {
+    final public func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType {
         try await urlRequestProvider.getURLRequestOnUnAuthorizedError(from: router)
     }
 }
@@ -204,7 +209,7 @@ public protocol APIServiceType: Sendable {
      */
     func getDecoded<T: Decodable>(from data: Data, decode: (T.Type, Data) throws -> T) throws -> T
 
-    func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T
+    func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: HTTPResponse, decode: (T.Type, Data) throws -> T) throws -> T
 
     /**
      Fetches data from the network using a given `URLRequest`.
@@ -215,13 +220,13 @@ public protocol APIServiceType: Sendable {
      - Returns: The data and response fetched from the network.
      - Throws: An error if the network request fails.
      */
-    func getDataFromNetwork(for request: URLRequest) async throws -> (Data, URLResponse)
+    func getDataFromNetwork(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse)
 }
 
 extension APIServiceType {
     @_disfavoredOverload
-    public func getDataFromNetwork(for request: URLRequest) async throws -> (Data) {
-        try await getDataFromNetwork(for: request).0
+    public func getDataFromNetwork(for request: HTTPRequest, body: Data?) async throws -> (Data) {
+        try await getDataFromNetwork(for: request, body: body).0
     }
 }
 
@@ -237,11 +242,11 @@ public protocol APIRouterServiceType<AuthorizationType>: RouterBytes.APIServiceT
 
     func getResponse<RouterType: APIRouter>(from router: RouterType) async throws -> RouterType.HeaderResponse where RouterType.AuthorizationType == AuthorizationType, RouterType.Response == Void, RouterType.HeaderResponse: Decodable
 
-    func getData<RouterType: APIRouter>(for router: RouterType) async throws -> (Data, URLResponse) where RouterType.AuthorizationType == AuthorizationType
+    func getData<RouterType: APIRouter>(for router: RouterType) async throws -> (Data, HTTPResponse) where RouterType.AuthorizationType == AuthorizationType
 
-    func getURLRequest<RouterType: APIRouter>(from router: RouterType) async throws -> URLRequest where RouterType.AuthorizationType == AuthorizationType
+    func getURLRequest<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType
 
-    func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> URLRequest where RouterType.AuthorizationType == AuthorizationType
+    func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType
 }
 
 @available(macOS 12.0, *)
@@ -267,11 +272,11 @@ open class APIService<NetworkingService: NetworkingServiceType>: @unchecked Send
         return decoded
     }
 
-    final public func getDataFromNetwork(for request: URLRequest) async throws -> (Data, URLResponse) {
-        eventDelegate?.requestFired(request: request)
+    final public func getDataFromNetwork(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse) {
+        eventDelegate?.requestFired(request: request, body: body)
         
-        let (data, response) = try await networkingService.data(for: request)
-        eventDelegate?.responseReceived(from: request, data: data, response: response)
+        let (data, response) = try await networkingService.data(for: request, body: body)
+        eventDelegate?.responseReceived(from: request, body: body, data: data, response: response)
 
         try checkResponse(from: data, with: response)
         
@@ -279,9 +284,11 @@ open class APIService<NetworkingService: NetworkingServiceType>: @unchecked Send
     }
 
     @inlinable
-    final public func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: URLResponse, decode: (T.Type, Data) throws -> T) throws -> T {
-        guard let httpResponse = response as? HTTPURLResponse else { throw ResponseValidationError.notHTTPURLResponse }
-        let serialization = try JSONSerialization.data(withJSONObject: httpResponse.allHeaderFields, options: [])
+    final public func getDecodedHeaderResponse<T: Decodable & Sendable>(from response: HTTPResponse, decode: (T.Type, Data) throws -> T) throws -> T {
+        let headers: [String: String] = response.headerFields.reduce(into: [:]) { partialResult, field in
+            partialResult[field.name.rawName] = field.value
+        }
+        let serialization = try JSONSerialization.data(withJSONObject: headers, options: [])
 
         return try getDecoded(from: serialization, decode: decode)
     }
@@ -295,7 +302,7 @@ open class APIService<NetworkingService: NetworkingServiceType>: @unchecked Send
      - Throws: A `ResponseValidationError` if the response is invalid.
      */
     @inlinable
-    open func checkResponse(from data: Data, with response: URLResponse) throws {
+    open func checkResponse(from data: Data, with response: HTTPResponse) throws {
         if let error = ResponseValidationError(response: response) {
             throw error
         }

@@ -19,12 +19,12 @@ public protocol RefreshTokenAPIRouter: APIRouter {
 
     init(previousToken: APIToken)
 
-    func getToken(data: Data, response: URLResponse, apiService: some APIServiceType) throws -> APIToken
+    func getToken(data: Data, response: HTTPResponse, apiService: some APIServiceType) throws -> APIToken
 }
 
 @available(macOS 10.15, *)
 public extension RefreshTokenAPIRouter where Response: TokenAPIRouterResponse, Response.APIToken == APIToken, HeaderResponse == Void {
-    func getToken(data: Data, response: URLResponse, apiService: some APIServiceType) throws -> APIToken {
+    func getToken(data: Data, response: HTTPResponse, apiService: some APIServiceType) throws -> APIToken {
         let decoded: Response = try apiService.getDecoded(from: data, decode: decode)
         return decoded.asAPIToken()
     }
@@ -32,7 +32,7 @@ public extension RefreshTokenAPIRouter where Response: TokenAPIRouterResponse, R
 
 @available(macOS 10.15, *)
 public extension RefreshTokenAPIRouter where HeaderResponse: TokenAPIRouterResponse, HeaderResponse.APIToken == APIToken, Response == Void {
-    func getToken(data: Data, response: URLResponse, apiService: some APIServiceType) throws -> APIToken {
+    func getToken(data: Data, response: HTTPResponse, apiService: some APIServiceType) throws -> APIToken {
         let decoded: HeaderResponse = try apiService.getDecodedHeaderResponse(from: response, decode: decode)
         return decoded.asAPIToken()
     }

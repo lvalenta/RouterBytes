@@ -19,20 +19,20 @@ public protocol URLRequestProvider<AuthorizationType>: Sendable {
     /// - Parameter router: The API router to create a URLRequest for.
     /// - Returns: A URLRequest configured with the given API router.
     /// - Throws: An error if the URLRequest could not be created.
-    func getURLRequest<RouterType: APIRouter>(from router: RouterType) async throws -> URLRequest where RouterType.AuthorizationType == AuthorizationType
+    func getURLRequest<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType
 
     /// Returns a URLRequest for the given API router when an unauthorized error occurs.
     ///
     /// - Parameter router: The API router to create a URLRequest for.
     /// - Returns: A URLRequest configured with the given API router.
     /// - Throws: An error if the URLRequest could not be created.
-    func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> URLRequest where RouterType.AuthorizationType == AuthorizationType
+    func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType
 }
 
 public extension URLRequestProvider {
     /// Default implementation of `getURLRequestOnUnAuthorizedError(from:)`.
     @inlinable
-    func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> URLRequest where RouterType.AuthorizationType == AuthorizationType {
+    func getURLRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType {
         try await getURLRequest(from: router)
     }
 }
@@ -56,8 +56,8 @@ public struct BaseURLRequestProvider<AuthorizationType, HostnameProvider: Router
     /// - Returns: A URLRequest configured with the given API router.
     /// - Throws: An error if the URLRequest could not be created.
     @inlinable
-    public func getURLRequest<RouterType>(from router: RouterType) async throws -> URLRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
-        try router.asURLRequest(hostname: hostnameProvider.hostname(for: router))
+    public func getURLRequest<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
+        try router.asHTTPRequest(hostname: hostnameProvider.hostname(for: router))
     }
 }
 
@@ -104,7 +104,7 @@ public class MockURLRequestProvider<AuthorizationType>: @unchecked Sendable, URL
     /// - Parameter router: The API router to create a URLRequest for.
     /// - Returns: A URLRequest configured with the given API router.
     /// - Throws: An error if the URLRequest could not be created.
-    public func getURLRequest<RouterType>(from router: RouterType) async throws -> URLRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
+    public func getURLRequest<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
         getURLRequestCalled = true
         return try await baseURLProvider.getURLRequest(from: router)
     }
@@ -114,7 +114,7 @@ public class MockURLRequestProvider<AuthorizationType>: @unchecked Sendable, URL
     /// - Parameter router: The API router to create a URLRequest for.
     /// - Returns: A URLRequest configured with the given API router.
     /// - Throws: An error if the URLRequest could not be created.
-    public func getURLRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> URLRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
+    public func getURLRequestOnUnAuthorizedError<RouterType>(from router: RouterType) async throws -> HTTPRequest where RouterType : APIRouter, AuthorizationType == RouterType.AuthorizationType {
         getURLRequestOnUnAuthorizedErrorCalled = true
         return try await baseURLProvider.getURLRequestOnUnAuthorizedError(from: router)
     }

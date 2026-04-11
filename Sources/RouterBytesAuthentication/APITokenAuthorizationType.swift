@@ -10,12 +10,12 @@ import RouterBytes
 
 @available(macOS 10.15.0, *)
 public protocol APITokenAuthorizationType {
-    func authorizedRequest(urlRequest: URLRequest, with provider: some APITokenProvider) async throws -> URLRequest
+    func authorizedRequest(request: HTTPRequest, with provider: some APITokenProvider) async throws -> HTTPRequest
 }
 
 @available(macOS 10.15.0, *)
 extension RouterBytes.AuthorizationType: APITokenAuthorizationType {
-    public func authorizedRequest(urlRequest: URLRequest, with provider: some APITokenProvider) async throws -> URLRequest {
+    public func authorizedRequest(request: HTTPRequest, with provider: some APITokenProvider) async throws -> HTTPRequest {
         switch self {
         case let .bearer(tokenType):
             let apiToken = try await provider.apiToken
@@ -33,9 +33,9 @@ extension RouterBytes.AuthorizationType: APITokenAuthorizationType {
                 }
             }
             
-            return urlRequest.withBearerToken(token)
+            return request.withBearerToken(token)
         case .none:
-            return urlRequest
+            return request
         }
     }
 }
