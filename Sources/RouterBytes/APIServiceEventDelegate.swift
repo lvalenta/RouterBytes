@@ -27,8 +27,8 @@ import Foundation
 ///         log.debug(value)
 ///     }
 ///
-///     func requestFailedWithUnAuthorizedError(router: some APIRouter) async {
-///         log.error("Request failed with unAuthorizedError: \(router)")
+///     func requestFailedWithUnAuthorizedError(router: some APIRouter, error: Error) async {
+///         log.error("Request failed with unAuthorizedError: \(router), error: \(error)")
 ///         await logoutAction?()
 ///     }
 /// }
@@ -56,8 +56,10 @@ public protocol APIServiceEventDelegate: Sendable {
 
     /// Notifies the delegate that a request failed with an unauthorized error.
     ///
-    /// - Parameter router: The APIRouter instance that failed with an unauthorized error.
-    func requestFailedWithUnAuthorizedError(router: some APIRouter) async
+    /// - Parameters:
+    ///   - router: The APIRouter instance that failed with an unauthorized error.
+    ///   - error: The unauthorized error that caused the callback.
+    func requestFailedWithUnAuthorizedError(router: some APIRouter, error: Error) async
 }
 
 public extension APIServiceEventDelegate {
@@ -73,7 +75,7 @@ public extension APIServiceEventDelegate {
     @inlinable
     func responseDecoded<T: Sendable>(_ value: T) { }
 
-    /// Default implementation of `requestFailedWithUnAuthorizedError(router:)`.
+    /// Default implementation of `requestFailedWithUnAuthorizedError(router:error:)`.
     @inlinable
-    func requestFailedWithUnAuthorizedError(router: some APIRouter) async { }
+    func requestFailedWithUnAuthorizedError(router: some APIRouter, error: Error) async { }
 }

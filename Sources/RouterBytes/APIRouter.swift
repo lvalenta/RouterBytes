@@ -39,7 +39,7 @@ public struct RetryOptions: OptionSet, Sendable {
 
  ### Default Values
  The `APIRouter` extension provides default values for some properties:
- - `additionalHTTPFields`: empty
+ - `additionalHeaderFields`: empty
  - `queryItems`: an empty dictionary
  - `body`: `nil`
  - `method`: `.get`
@@ -49,30 +49,29 @@ public struct RetryOptions: OptionSet, Sendable {
  ### Required Properties
  To conform to `APIRouter`, you should implement the following properties:
 
-    - `defaultHTTPFields`: The default HTTP fields for the API endpoint.
+    - `defaultHeaderFields`: The default header fields for the API endpoint.
     - `hostname`: The hostname for the API endpoint.
     - `jsonDecoder`: The `JSONDecoder` to use for decoding responses.
     - `jsonEncoder`: The `JSONEncoder` to use for encoding requests.
     - `path`: The path for the API endpoint.
     - `authType`: The authorization type for the API endpoint.
 
- - SeeAlso: `APIRouterError`, `HTTPMethod`, `HTTPFields`
+ - SeeAlso: `HTTPMethod`, `HTTPFields`
  */
 public protocol APIRouter<RequestBody>: Sendable {
-    associatedtype Response: Sendable
+    associatedtype Response: Sendable = Void
     associatedtype HeaderResponse: Sendable = Void
     associatedtype AuthorizationType = RouterBytes.AuthorizationType
     associatedtype RequestBody: Sendable = Void
 
     // Properties to be specified within the project APIRouter protocol
-    /// The default HTTP fields for the API endpoint.
+    /// The default header fields for the API endpoint.
     var defaultHeaderFields: HTTPFields { get }
 
     /// The path for the API endpoint.
     var path: Path { get }
-    /// Additional HTTP fields to be added to the request fields for the API endpoint.
+    /// Additional header fields to be added to the request fields for the API endpoint.
     /// Empty fields if not specified.
-
     var additionalHeaderFields: HTTPFields { get }
     /// Ordered Query items to be added to the URL for the API endpoint.
     /// Empty dictionary if not specified
@@ -114,7 +113,7 @@ public extension APIRouter {
     /// - Parameter hostname: The base URL for the API endpoint.
     func asURL(hostname: URL) throws -> URL {
         guard var components = URLComponents(url: hostname, resolvingAgainstBaseURL: false) else {
-            throw APIRouterError.invalidHostname
+            throw URLError(.badURL)
         }
 
         let path: Path = components.path + path
@@ -126,7 +125,7 @@ public extension APIRouter {
         }
 
         guard let url = components.url else {
-            throw APIRouterError.invalidURL(components: components)
+            throw URLError(.badURL)
         }
 
         return url

@@ -15,8 +15,8 @@ struct APIServiceTests {
     @Test("APIService.getDecoded decodes response data and notifies delegate")
     func getDecodedDecodesResponseData() throws {
         let delegate = APIServiceEventDelegateSpy()
-        let apiService = APIService<NetworkingServiceMock>(
-            networkingService: NetworkingServiceMock(),
+        let apiService = APIService<UnusedNetworkingService>(
+            networkingService: UnusedNetworkingService(),
             eventDelegate: delegate
         )
 
@@ -34,7 +34,7 @@ struct APIServiceTests {
 
     @Test("APIService.getDecoded forwards decode errors")
     func getDecodedForwardsDecodeErrors() {
-        let apiService = APIService<NetworkingServiceMock>(networkingService: NetworkingServiceMock())
+        let apiService = APIService<UnusedNetworkingService>(networkingService: UnusedNetworkingService())
 
         do {
             let _: DecodedResponse = try apiService.getDecoded(from: Data("{}".utf8)) { _, _ in
@@ -51,8 +51,8 @@ struct APIServiceTests {
     @Test("APIService.getDecodedHeaderResponse decodes header values and notifies delegate")
     func getDecodedHeaderResponseDecodesHeaders() {
         let delegate = APIServiceEventDelegateSpy()
-        let apiService = APIService<NetworkingServiceMock>(
-            networkingService: NetworkingServiceMock(),
+        let apiService = APIService<UnusedNetworkingService>(
+            networkingService: UnusedNetworkingService(),
             eventDelegate: delegate
         )
         let traceId = HTTPField.Name("X-Trace-Id")!
@@ -81,7 +81,7 @@ struct APIServiceTests {
 
     @Test("APIService.getDecodedHeaderResponse forwards decode errors")
     func getDecodedHeaderResponseForwardsDecodeErrors() {
-        let apiService = APIService<NetworkingServiceMock>(networkingService: NetworkingServiceMock())
+        let apiService = APIService<UnusedNetworkingService>(networkingService: UnusedNetworkingService())
         let response = HTTPResponse(status: 200)
 
         do {
@@ -94,6 +94,29 @@ struct APIServiceTests {
         } catch {
             Issue.record("Expected DecodeFailure.failed, got \(error).")
         }
+    }
+}
+
+@available(macOS 12.0, *)
+private final class UnusedNetworkingService: NetworkingServiceType {
+    func finishTasksAndInvalidate() { }
+
+    func invalidateAndCancel() { }
+
+    func reset() async { }
+
+    func data(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse) {
+        fatalError("This test double is intentionally unused for network calls")
+    }
+
+    @available(iOS 15.0, *)
+    func data(for request: HTTPRequest, body: Data?, delegate: URLSessionTaskDelegate?) async throws -> (Data, HTTPResponse) {
+        fatalError("This test double is intentionally unused for network calls")
+    }
+
+    @available(iOS 15.0, *)
+    func bytes(for request: HTTPRequest, delegate: URLSessionTaskDelegate?) async throws -> (URLSession.AsyncBytes, HTTPResponse) {
+        fatalError("This test double is intentionally unused for network calls")
     }
 }
 

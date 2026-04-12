@@ -52,6 +52,8 @@ Notable signature changes:
 - Delegate callbacks now include request body:
   - `requestFired(request:body:)`
   - `responseReceived(from:body:data:response:)`
+- Unauthorized delegate callback now also includes the thrown error:
+  - `requestFailedWithUnAuthorizedError(router:error:)`
 
 ### 4. Update Error Handling
 

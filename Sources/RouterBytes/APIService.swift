@@ -155,11 +155,11 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
                 let request = try await getHTTPRequestOnUnAuthorizedError(from: router)
                 return try await getDataFromNetwork(for: request, body: body)
             } catch {
-                await eventDelegate?.requestFailedWithUnAuthorizedError(router: router)
+                await eventDelegate?.requestFailedWithUnAuthorizedError(router: router, error: error)
                 throw error
             }
         } catch let error as FailedWithUnAuthorizedError {
-            await eventDelegate?.requestFailedWithUnAuthorizedError(router: router)
+            await eventDelegate?.requestFailedWithUnAuthorizedError(router: router, error: error.reason)
             throw error
        }
     }
