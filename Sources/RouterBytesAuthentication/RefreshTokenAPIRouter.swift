@@ -39,7 +39,7 @@ public extension RefreshTokenAPIRouter where HeaderResponse: TokenAPIRouterRespo
 }
 
 @available(macOS 10.15, *)
-public protocol TokenAPIRouterResponse: Codable {
+public protocol TokenAPIRouterResponse: Decodable {
     associatedtype APIToken: RefreshableAPITokenType = BaseAPIToken
 
     func asAPIToken() -> APIToken
