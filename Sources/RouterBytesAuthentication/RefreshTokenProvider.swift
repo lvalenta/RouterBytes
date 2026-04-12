@@ -47,9 +47,11 @@ public struct APIRouterRefreshTokenProvider<
     public func getRefreshedAPIToken(currentToken: APIToken) async throws -> APIToken {
         let router = RefreshTokenAPIRouter(previousToken: currentToken)
 
-        let request = try router
+        let originalRequest = try router
             .asHTTPRequest(hostname: hostnameProvider.hostname(for: router))
-            .withBearerToken(currentToken.refreshToken.description)
+
+        let request = try await router.authType.authorizedRequest(request: originalRequest, with: currentToken)
+
         let body = try router.encodedBody()
 
         let (data, urlResponse) = try await apiService.getDataFromNetwork(for: request, body: body)

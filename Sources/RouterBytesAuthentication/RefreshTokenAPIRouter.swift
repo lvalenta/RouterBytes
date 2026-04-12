@@ -14,7 +14,7 @@ A protocol for API routers that handle refreshing authentication tokens.
 The `RefreshTokenAPIRouter` protocol extends the `APIRouter` protocol and requires the router to have a `Response` type that conforms to the `CodableAPITokentype` protocol. Additionally, it requires the router to have an initializer with no arguments.
 */
 @available(macOS 10.15, *)
-public protocol RefreshTokenAPIRouter: APIRouter {
+public protocol RefreshTokenAPIRouter: APIRouter where AuthorizationType: APITokenAuthorizationType {
     associatedtype APIToken: RefreshableAPITokenType = BaseAPIToken
 
     init(previousToken: APIToken)
