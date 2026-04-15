@@ -33,6 +33,16 @@ Because of the change, Headers are no longer `Dictionary` of string key, but the
 
 `cachePolicy` is no longer part of `APIRouter`. Use `URLSessionConfiguration` instead.
 
+The default `AuthorizationType` on `APIRouter` changed from `AuthorizationType` to `BearerAuthorizationType`:
+
+```swift
+// 0.10.x
+associatedtype AuthorizationType = RouterBytes.AuthorizationType
+
+// 1.0.0
+associatedtype AuthorizationType = RouterBytes.BearerAuthorizationType
+```
+
 ### 3. Update Service/Provider Signatures
 
 `URLRequestProvider`, `APIServiceType`, `NetworkingServiceType`, and `APIServiceEventDelegate` now use `HTTPRequest`/`HTTPResponse`.
@@ -55,7 +65,64 @@ Notable signature changes:
 - Unauthorized delegate callback now also includes the thrown error:
   - `requestFailedWithUnAuthorizedError(router:error:)`
 
-### 4. Update Error Handling
+### 4. Update Authorization Types
+
+`AuthorizationType` was renamed and restructured:
+
+| 0.10.x | 1.0.0 |
+| --- | --- |
+| `AuthorizationType` | `BearerAuthorizationType` |
+| `AuthorizationType.BearerType` | `TokenAuthorizationType` |
+| `.bearer(.accessToken)` | `.bearer(.accessToken)` (unchanged usage, new type) |
+
+`APITokenAuthorizationType` is now a generic protocol with an associated type. The built-in conformance on `AuthorizationType` was removed — you must provide your own conformance:
+
+```swift
+// 0.10.x — conformance was provided automatically
+// AuthorizationType: APITokenAuthorizationType ✅ out of the box
+
+// 1.0.0 — provide your own conformance
+extension BearerAuthorizationType: APITokenAuthorizationType {
+    public func authorizedRequest(request: HTTPRequest, with apiToken: YourAPIToken) -> HTTPRequest {
+        switch self {
+        case let .bearer(tokenType):
+            let token: String = switch tokenType {
+            case .accessToken:
+                apiToken.accessToken.description
+            case .refreshToken:
+                apiToken.refreshToken.description
+            }
+            return request.withBearerToken(token)
+        case .none:
+            return request
+        }
+    }
+
+    public func authorizedRequest(request: HTTPRequest, with provider: some APITokenProvider<YourAPIToken>) async throws -> HTTPRequest {
+        switch self {
+        case .bearer:
+            let apiToken = try await provider.apiToken
+            return authorizedRequest(request: request, with: apiToken)
+        case .none:
+            return request
+        }
+    }
+}
+```
+
+`RefreshTokenAPIRouter.APIToken` and `TokenAPIRouterResponse.APIToken` no longer default to `BaseAPIToken`. You must specify the associated type explicitly, and it must match `AuthorizationType.APIToken`:
+
+```swift
+// 0.10.x
+associatedtype APIToken: RefreshableAPITokenType = BaseAPIToken
+
+// 1.0.0
+associatedtype APIToken: RefreshableAPITokenType where APIToken == AuthorizationType.APIToken
+```
+
+`TokenProviderWrappedHTTPRequestProvider` now requires `AuthorizationType.APIToken == APITokenProvider.APIToken`.
+
+### 5. Update Error Handling
 
 `ResponseValidationError` changed from enum-style cases to a status-based struct:
 
@@ -66,7 +133,7 @@ Notable signature changes:
   - `catch let error as ResponseValidationError where error.status == .unauthorized`
   - `catch let error as ResponseValidationError where error.status.kind == .informational || error.status.kind == .invalid`
 
-### 5. Retry Behavior
+### 6. Retry Behavior
 
 `RetryOptions` now includes:
 
@@ -82,7 +149,7 @@ Notable signature changes:
 
 If you need old behavior, set `retryOptions` explicitly.
 
-### 6. Header Response Support
+### 7. Header Response Support
 
 `HeaderResponse` support remains available in `1.0.0` and now decodes from `HTTPResponse.headerFields`.
 
@@ -94,5 +161,8 @@ No change is required to the `associatedtype HeaderResponse` declaration itself,
 2. Replace `URLRequest`/`URLResponse` in RouterBytes integration points with `HTTPRequest`/`HTTPResponse`.
 3. Rename request provider types/methods to `HTTPRequestProvider` (`getHTTPRequest(...)` APIs).
 4. Update delegate and networking function signatures to include `body`.
-5. Migrate `ResponseValidationError` checks to `status`/`status.kind`.
-6. Decide whether to keep default retry behavior with `retryOnInternalError` enabled.
+5. Rename `AuthorizationType` to `BearerAuthorizationType` and `BearerType` to `TokenAuthorizationType`.
+6. Provide your own `APITokenAuthorizationType` conformance on `BearerAuthorizationType` (or your custom type).
+7. Remove reliance on default `= BaseAPIToken` — explicitly specify `APIToken` associated types.
+8. Migrate `ResponseValidationError` checks to `status`/`status.kind`.
+9. Decide whether to keep default retry behavior with `retryOnInternalError` enabled.
