@@ -19,7 +19,7 @@ public struct TokenProviderWrappedHTTPRequestProvider<
     AuthorizationType: APITokenAuthorizationType,
     HostnameProvider: RouterBytes.HostnameProvider,
     APITokenProvider: RouterBytesAuthentication.APITokenProvider
->: HTTPRequestProvider {
+>: HTTPRequestProvider where AuthorizationType.APIToken == APITokenProvider.APIToken {
     public let hostnameProvider: HostnameProvider
     public let tokenProvider: APITokenProvider
 

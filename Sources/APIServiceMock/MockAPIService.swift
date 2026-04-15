@@ -10,7 +10,7 @@ import RouterBytes
 import HTTPTypes
 
 public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked Sendable {
-    public typealias AuthorizationType = RouterBytes.AuthorizationType
+    public typealias AuthorizationType = RouterBytes.BearerAuthorizationType
     
     private var responsesOnRouter: [ObjectIdentifier: (any APIRouter) async throws -> (Any)] = [:]
     private var httpRequestsOnUnAuthorizedRouter: [ObjectIdentifier: (any APIRouter) async throws -> HTTPRequest] = [:]

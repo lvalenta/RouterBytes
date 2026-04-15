@@ -8,21 +8,19 @@
 import Foundation
 
 /// The type of authorization used for a network request.
-public enum AuthorizationType: Sendable {
-    
+public enum BearerAuthorizationType: Sendable {
+
     /// No authorization used for the request.
     case none
     
     /// Bearer authorization used for the request.
-    case bearer(BearerType)
-    
-    /// The type of bearer authorization used for the request.
-    public enum BearerType: Sendable {
-        
-        /// Access token used for bearer authorization.
-        case accessToken
-        
-        /// Refresh token used for bearer authorization.
-        case refreshToken
-    }
+    case bearer(TokenAuthorizationType)
+}
+
+public enum TokenAuthorizationType: Sendable {
+    /// Access token used for bearer authorization.
+    case accessToken
+
+    /// Refresh token used for bearer authorization.
+    case refreshToken
 }
