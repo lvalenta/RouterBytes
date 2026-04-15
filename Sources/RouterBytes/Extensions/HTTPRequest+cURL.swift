@@ -1,22 +1,23 @@
 //
-//  URLRequest+cURL.swift
+//  HTTPRequest+cURL.swift
 //  
 //
 //  Created by Lukáš Valenta on 30.04.2023.
 //
 
 import Foundation
+import HTTPTypes
 
-public extension URLRequest {
-    /// Returns a string representation of the URLRequest in cURL format.
+public extension HTTPRequest {
+    /// Returns a string representation of the HTTPRequest in cURL format.
     ///
     /// - Parameter pretty: A flag that indicates whether to include newlines in the output.
     ///                     When `true`, the output is formatted with newlines for improved readability.
     ///                     The default value is `false`.
     ///
-    /// - Returns: A string representation of the URLRequest in cURL format.
+    /// - Returns: A string representation of the HTTPRequest in cURL format.
     ///
-    /// - Note: This function generates a cURL command that mimics the original URLRequest, including headers and
+    /// - Note: This function generates a cURL command that mimics the original HTTPRequest, including headers and
     ///         the request method. The generated cURL command can be copied and executed in a shell environment,
     ///         allowing you to reproduce the original request.
     ///
@@ -25,30 +26,30 @@ public extension URLRequest {
     ///
     /// - Warning: This function may expose sensitive data, such as authentication tokens, in the generated cURL output.
     ///
-    func cURL(pretty: Bool = false) -> String {
+    func cURL(body: Data? = nil, pretty: Bool = false) -> String {
         let newLine = pretty ? "\\\n" : " "
         lazy var newLineCount = newLine.count
-        let method = (pretty ? "--request " : "-X ") + "\(self.httpMethod ?? "GET")"
-        let url: String = (pretty ? "--url " : "") + "\'\(self.url?.absoluteString ?? "")\'"
+        let methodOption = (pretty ? "--request " : "-X ") + self.method.rawValue
+        let urlOption: String = (pretty ? "--url " : "") + "\'\(self.url?.absoluteString ?? "")\'"
         
         var cURL = "curl "
         var header = ""
         var data: String = ""
         
-        if let headers = allHTTPHeaderFields, !headers.isEmpty {
-            for (key,value) in headers {
-                header += (pretty ? "--header " : " -H ") + "\'\(key): \(value)\'\(newLine)"
-            }
+        for field in headerFields {
+            header += (pretty ? "--header " : " -H ") + "\'\(field.name.rawName): \(field.value)\'\(newLine)"
+        }
 
+        if !header.isEmpty {
             header.removeLast(newLineCount)
         }
         
 
-        if let body = httpBody?.asJSONString(pretty: pretty), !body.isEmpty {
+        if let body = body?.asJSONString(pretty: pretty), !body.isEmpty {
             data = "--data '\(body)'"
         }
         
-        cURL += "\(method)\(method.isEmpty ? "" : newLine)\(url)\(pretty ? "\\\n" : "")\(header)\(header.isEmpty ?  "" : newLine)\(data)"
+        cURL += "\(methodOption)\(methodOption.isEmpty ? "" : newLine)\(urlOption)\(pretty ? "\\\n" : "")\(header)\(header.isEmpty ?  "" : newLine)\(data)"
         
         let endsWithNewLine = cURL.suffix(newLineCount) == newLine
         

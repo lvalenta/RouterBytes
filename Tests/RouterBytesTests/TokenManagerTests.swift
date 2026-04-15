@@ -15,44 +15,44 @@ nonisolated(unsafe) fileprivate var dateProvider = DateProviderMock(date: Date()
 open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: XCTestCase {
     var sut: TokenManager<
         AuthorizationType,
-        MockURLRequestProvider<AuthorizationType>,
+        MockHTTPRequestProvider<AuthorizationType>,
         RefreshableTokenProvider<
             BaseAPIToken,
             APITokenRepositoryMock<BaseAPIToken>,
             APIRouterRefreshTokenProvider<
                 BaseAPIToken,
                 RefreshTokenRouter,
-                    APIRouterService<AuthorizationType, NetworkingServiceMock, MockURLRequestProvider<AuthorizationType>>,
-                MockURLRequestProvider<AuthorizationType>,
+                    APIRouterService<AuthorizationType, NetworkingServiceMock, MockHTTPRequestProvider<AuthorizationType>>,
+                MockHTTPRequestProvider<AuthorizationType>,
                 DateProviderMock
             >
         >
     >!
     var tokenRepository: APITokenRepositoryMock<BaseAPIToken>!
-    var hostnameProvider: HostnameProvider { urlRequestProvider }
-    var urlRequestProvider: MockURLRequestProvider<AuthorizationType>!
-    public var onRefreshNetworkCall: ((URLRequest) -> (Data, URLResponse))!
+    var hostnameProvider: HostnameProvider { httpRequestProvider }
+    var httpRequestProvider: MockHTTPRequestProvider<AuthorizationType>!
+    public var onRefreshNetworkCall: ((HTTPRequest, Data?) -> (Data, HTTPResponse))!
     
     override open func setUp() {
         dateProvider = .init(date: Date())
-        let networkingService = NetworkingServiceMock(onDataCall: { request, _ in
-            self.onRefreshNetworkCall(request)
+        let networkingService = NetworkingServiceMock(onDataCall: { request, body, _ in
+            self.onRefreshNetworkCall(request, body)
         })
         
         tokenRepository = APITokenRepositoryMock(apiToken: nil)
         
-        onRefreshNetworkCall = { _ in
+        onRefreshNetworkCall = { _, _ in
             XCTFail("Refresh token action should not be called")
             fatalError()
         }
         
-        self.urlRequestProvider = MockURLRequestProvider(hostname: URL(string: "https://cleevio.com")!)
+        self.httpRequestProvider = MockHTTPRequestProvider(hostname: URL(string: "https://cleevio.com")!)
         
         sut = TokenManager(
-            hostnameProvider: urlRequestProvider,
+            hostnameProvider: httpRequestProvider,
             tokenProvider: .init(storage: tokenRepository, refreshProvider: .init(
-                apiService: APIRouterService(networkingService: networkingService, urlRequestProvider: urlRequestProvider),
-                hostnameProvider: urlRequestProvider,
+                apiService: APIRouterService(networkingService: networkingService, httpRequestProvider: httpRequestProvider),
+                hostnameProvider: httpRequestProvider,
                 dateProvider: dateProvider
             ))
         )
@@ -100,14 +100,16 @@ open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: X
         let expectation = XCTestExpectation(description: "TokenManager should try to refresh token")
 
         let refreshRouter = RefreshTokenRouter()
-        let expectedRefreshURLRequest = try refreshRouter
-            .asURLRequest(hostname: hostnameProvider.hostname(for: refreshRouter))
+        let expectedRefreshHTTPRequest = try refreshRouter
+            .asHTTPRequest(hostname: hostnameProvider.hostname(for: refreshRouter))
             .withBearerToken(try tokenRepository.apiToken.refreshToken.description)
+        let expectedRefreshBody = try refreshRouter.encodedBody()
         
-        onRefreshNetworkCall = { request in
-            XCTAssertEqual(expectedRefreshURLRequest, request)
+        onRefreshNetworkCall = { request, body in
+            XCTAssertEqual(expectedRefreshHTTPRequest, request)
+            XCTAssertEqual(expectedRefreshBody, body)
             expectation.fulfill()
-            return (refreshResponse, HTTPURLResponse())
+            return (refreshResponse, HTTPResponse(status: 200))
         }
         
         try await executeBeforeCheck?()
@@ -180,40 +182,40 @@ final class TokenManagerTests: TokenManagerTestCase<AuthorizationType> {
 }
 
 @available(iOS 15.0, *)
-final class TokenManagerURLRequestProviderTests: TokenManagerTestCase<RouterBytes.AuthorizationType> {
+final class TokenManagerHTTPRequestProviderTests: TokenManagerTestCase<RouterBytes.AuthorizationType> {
     func testRefreshOnError() async throws {
         try await refreshingHelper(signedInTokenExpiration: Date.distantFuture, forceRefresh: false) {
             let router = Self.mockRouter(type: .none)
-            let request = try await self.sut.getURLRequestOnUnAuthorizedError(from: router)
-            XCTAssertEqual(request, try router.asURLRequest(hostname: self.hostnameProvider.hostname(for: router)))
+            let request = try await self.sut.getHTTPRequestOnUnAuthorizedError(from: router)
+            XCTAssertEqual(request, try router.asHTTPRequest(hostname: self.hostnameProvider.hostname(for: router)))
         }
     }
 
-    func testURLRequestProvidingWithNoneAuthType() async throws {
+    func testHTTPRequestProvidingWithNoneAuthType() async throws {
         let router = Self.mockRouter(type: .none)
-        let request = try await self.sut.getURLRequest(from: router)
-        XCTAssertEqual(request, try router.asURLRequest(hostname: self.hostnameProvider.hostname(for: router)))
+        let request = try await self.sut.getHTTPRequest(from: router)
+        XCTAssertEqual(request, try router.asHTTPRequest(hostname: self.hostnameProvider.hostname(for: router)))
     }
 
-    func testRefreshTokenOnURLRequest() async throws {
+    func testRefreshTokenOnHTTPRequest() async throws {
         try await refreshingHelper(signedInTokenExpiration: Date.distantFuture, forceRefresh: false) {
             let router = Self.mockRouter(type: .bearer(.accessToken))
-            let request = try await self.sut.getURLRequestOnUnAuthorizedError(from: router)
-            XCTAssertEqual(request, try router.asURLRequest(hostname: self.hostnameProvider.hostname(for: router)).withBearerToken(try self.tokenRepository.apiToken.accessToken))
+            let request = try await self.sut.getHTTPRequestOnUnAuthorizedError(from: router)
+            XCTAssertEqual(request, try router.asHTTPRequest(hostname: self.hostnameProvider.hostname(for: router)).withBearerToken(try self.tokenRepository.apiToken.accessToken))
         }
     }
 
-    func testURLRequestProvidingWithAccessTokenAuthType() async throws {
+    func testHTTPRequestProvidingWithAccessTokenAuthType() async throws {
         self.setLoggedIn(expiration: .distantFuture)
         let router = Self.mockRouter(type: .bearer(.accessToken))
-        let request = try await self.sut.getURLRequest(from: router)
-        XCTAssertEqual(request, try router.asURLRequest(hostname: self.hostnameProvider.hostname(for: router)).withBearerToken(try tokenRepository.apiToken.accessToken))
+        let request = try await self.sut.getHTTPRequest(from: router)
+        XCTAssertEqual(request, try router.asHTTPRequest(hostname: self.hostnameProvider.hostname(for: router)).withBearerToken(try tokenRepository.apiToken.accessToken))
     }
 
-    func testURLRequestProvidingWithAccessTokenNotLoggedIn() async throws {
+    func testHTTPRequestProvidingWithAccessTokenNotLoggedIn() async throws {
         let router = Self.mockRouter(type: .bearer(.accessToken))
         do {
-            _ = try await self.sut.getURLRequest(from: router)
+            _ = try await self.sut.getHTTPRequest(from: router)
             XCTFail("Error not thrown")
         } catch is NotLoggedInError {
             
@@ -222,17 +224,17 @@ final class TokenManagerURLRequestProviderTests: TokenManagerTestCase<RouterByte
         }
     }
 
-    func testURLRequestProvidingWithRefreshTokenLoggedIn() async throws {
+    func testHTTPRequestProvidingWithRefreshTokenLoggedIn() async throws {
         self.setLoggedIn(expiration: .distantFuture)
         let router = Self.mockRouter(type: .bearer(.refreshToken))
-        let request = try await self.sut.getURLRequest(from: router)
-        XCTAssertEqual(request, try router.asURLRequest(hostname: self.hostnameProvider.hostname(for: router)).withBearerToken(try tokenRepository.apiToken.refreshToken))
+        let request = try await self.sut.getHTTPRequest(from: router)
+        XCTAssertEqual(request, try router.asHTTPRequest(hostname: self.hostnameProvider.hostname(for: router)).withBearerToken(try tokenRepository.apiToken.refreshToken))
     }
 
-    func testURLRequestProvidingWithRefreshTokenNotLoggedIn() async throws {
+    func testHTTPRequestProvidingWithRefreshTokenNotLoggedIn() async throws {
         let router = Self.mockRouter(type: .bearer(.refreshToken))
         do {
-            _ = try await self.sut.getURLRequest(from: router)
+            _ = try await self.sut.getHTTPRequest(from: router)
             XCTFail("Error not thrown")
         } catch is NotLoggedInError {
             
@@ -287,7 +289,7 @@ struct RefreshTokenRouter: APIRouter {
         }
     }
 
-    var defaultHeaders: RouterBytes.Headers { [:] }
+    var defaultHeaderFields: RouterBytes.HTTPFields { [:] }
     var hostname: URL { URL(string: "https://cleevio.com")! }
     var jsonDecoder: JSONDecoder = .init()
     var jsonEncoder: JSONEncoder = .init()

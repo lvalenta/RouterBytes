@@ -11,17 +11,17 @@ import RouterBytes
 @available(iOS 15.0, *)
 final class APIRouterServiceTests: XCTestCase {
     var networkingService: NetworkingServiceMock!
-    var apiService: APIRouterService<AuthorizationType, NetworkingServiceMock, MockURLRequestProvider<AuthorizationType>>!
+    var apiService: APIRouterService<AuthorizationType, NetworkingServiceMock, MockHTTPRequestProvider<AuthorizationType>>!
     var delegate: MockAPIServiceEventDelegate!
-    var mockURLRequestProvider: MockURLRequestProvider<AuthorizationType>!
+    var mockHTTPRequestProvider: MockHTTPRequestProvider<AuthorizationType>!
     
     override func setUp() {
         super.setUp()
         
         networkingService = NetworkingServiceMock()
         delegate = MockAPIServiceEventDelegate()
-        mockURLRequestProvider = MockURLRequestProvider(hostname: URL(string: "https://cleevio.com")!)
-        apiService = APIRouterService(networkingService: networkingService, urlRequestProvider: mockURLRequestProvider, eventDelegate: delegate)
+        mockHTTPRequestProvider = MockHTTPRequestProvider(hostname: URL(string: "https://cleevio.com")!)
+        apiService = APIRouterService(networkingService: networkingService, httpRequestProvider: mockHTTPRequestProvider, eventDelegate: delegate)
     }
     
     override func tearDown() {
@@ -33,11 +33,11 @@ final class APIRouterServiceTests: XCTestCase {
     
     func testGetData() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        let request = try router.asURLRequest()
+        let request = try router.asHTTPRequest()
         let expectedResponse = "Hello, World!"
         let responseData = try JSONEncoder().encode(expectedResponse)
-        let receivedResponse = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-        networkingService.onDataCall = { request, _ in
+        let receivedResponse = HTTPResponse(status: 200)
+        networkingService.onDataCall = { request, _, _ in
             (responseData, receivedResponse)
         }
         
@@ -53,17 +53,17 @@ final class APIRouterServiceTests: XCTestCase {
 
     func testRetryOnInternalErrorFailure() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        let expectedRequest = try router.asURLRequest()
-        let receivedResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+        let expectedRequest = try router.asHTTPRequest()
+        let receivedResponse = HTTPResponse(status: 500)
 
         let firstRequest = XCTestExpectation(description: "First request should fire")
         let secondRequest = XCTestExpectation(description: "Second request should fire")
         
-        networkingService.onDataCall = { request, _ in
+        networkingService.onDataCall = { request, _, _ in
             XCTAssertEqual(expectedRequest, request)
             firstRequest.fulfill()
 
-            self.networkingService.onDataCall = { request, _ in
+            self.networkingService.onDataCall = { request, _, _ in
                 XCTAssertEqual(expectedRequest, request)
                 secondRequest.fulfill()
                 return (Data(), receivedResponse)
@@ -81,8 +81,8 @@ final class APIRouterServiceTests: XCTestCase {
             XCTAssertEqual(delegate.receivedResponse, receivedResponse)
             XCTAssertEqual(delegate.firedRequest, expectedRequest)
             XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
-            XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
             // Wait for expectations to be fulfilled
             await fulfillment(of:[firstRequest, secondRequest])
@@ -91,9 +91,9 @@ final class APIRouterServiceTests: XCTestCase {
 
     func testRetryOnInternalErrorSuccess() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        let expectedRequest = try router.asURLRequest()
-        let receivedResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
-        let receivedSuccessResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        let expectedRequest = try router.asHTTPRequest()
+        let receivedResponse = HTTPResponse(status: 500)
+        let receivedSuccessResponse = HTTPResponse(status: 200)
         
         let expectedData = "Hello, World!"
         let responseData = try JSONEncoder().encode(expectedData)
@@ -102,11 +102,11 @@ final class APIRouterServiceTests: XCTestCase {
         let secondRequest = XCTestExpectation(description: "Second request should fire")
 
         
-        networkingService.onDataCall = { request, _ in
+        networkingService.onDataCall = { request, _, _ in
             XCTAssertEqual(expectedRequest, request)
             firstRequest.fulfill()
 
-            self.networkingService.onDataCall = { request, _ in
+            self.networkingService.onDataCall = { request, _, _ in
                 XCTAssertEqual(expectedRequest, request)
                 secondRequest.fulfill()
                 return (responseData, receivedSuccessResponse)
@@ -125,8 +125,8 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertEqual(delegate.firedRequest, expectedRequest)
         XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
         XCTAssertNotNil(delegate.decodedValue as? String)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-        XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+        XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
         await fulfillment(of: [firstRequest, secondRequest])
@@ -134,8 +134,8 @@ final class APIRouterServiceTests: XCTestCase {
 
     func testRetryOnTimeout() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        let expectedRequest = try router.asURLRequest()
-        let receivedSuccessResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        let expectedRequest = try router.asHTTPRequest()
+        let receivedSuccessResponse = HTTPResponse(status: 200)
         
         let expectedData = "Hello, World!"
         let responseData = try JSONEncoder().encode(expectedData)
@@ -144,11 +144,11 @@ final class APIRouterServiceTests: XCTestCase {
         let secondRequest = XCTestExpectation(description: "Second request should fire")
 
         
-        networkingService.onDataCall = { request, _ in
+        networkingService.onDataCall = { request, _, _ in
             XCTAssertEqual(expectedRequest, request)
             firstRequest.fulfill()
 
-            self.networkingService.onDataCall = { request, _ in
+            self.networkingService.onDataCall = { request, _, _ in
                 XCTAssertEqual(expectedRequest, request)
                 secondRequest.fulfill()
                 return (responseData, receivedSuccessResponse)
@@ -167,8 +167,8 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertEqual(delegate.firedRequest, expectedRequest)
         XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
         XCTAssertNotNil(delegate.decodedValue as? String)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-        XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+        XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
         await fulfillment(of: [firstRequest, secondRequest])
@@ -182,11 +182,11 @@ final class APIRouterServiceTests: XCTestCase {
             body: "",
             retryOptions: [.retryOnTimeOut]
         )
-        let expectedRequest = try router.asURLRequest()
-        let invalidResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+        let expectedRequest = try router.asHTTPRequest()
+        let invalidResponse = HTTPResponse(status: 100)
         var requestCount = 0
 
-        networkingService.onDataCall = { request, _ in
+        networkingService.onDataCall = { request, _, _ in
             requestCount += 1
             XCTAssertEqual(request, expectedRequest)
             return (Data(), invalidResponse)
@@ -195,11 +195,72 @@ final class APIRouterServiceTests: XCTestCase {
         do {
             _ = try await apiService.getResponse(from: router)
             XCTFail("Expected invalidResponseCode")
-        } catch ResponseValidationError.invalidResponseCode {
+        } catch let error as ResponseValidationError where error.status.kind == .informational || error.status.kind == .invalid {
             XCTAssertEqual(requestCount, 1)
-            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
         } catch {
             XCTFail("Expected invalidResponseCode, got \(error)")
+        }
+    }
+
+    func testRetryOnInvalidResponseCodeWhenEnabled() async throws {
+        let router = BaseAPIRouter<String, String>(
+            hostname: URL(string: "https://cleevio.com")!,
+            path: "/blog",
+            authType: .none,
+            body: "",
+            retryOptions: [.retryOnInvalidResponseCode]
+        )
+        let expectedRequest = try router.asHTTPRequest()
+        let receivedSuccessResponse = HTTPResponse(status: 200)
+        let expectedData = "Hello, World!"
+        let responseData = try JSONEncoder().encode(expectedData)
+
+        var requestCount = 0
+        networkingService.onDataCall = { request, _, _ in
+            requestCount += 1
+            XCTAssertEqual(request, expectedRequest)
+
+            if requestCount == 1 {
+                return (Data(), HTTPResponse(status: 100))
+            }
+
+            return (responseData, receivedSuccessResponse)
+        }
+
+        let response = try await apiService.getResponse(from: router)
+
+        XCTAssertEqual(requestCount, 2)
+        XCTAssertEqual(response, expectedData)
+        XCTAssertEqual(delegate.receivedResponse, receivedSuccessResponse)
+        XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
+    }
+
+    func testNoRetryOnInternalErrorWhenRetryOnInternalErrorDisabled() async throws {
+        let router = BaseAPIRouter<String, String>(
+            hostname: URL(string: "https://cleevio.com")!,
+            path: "/blog",
+            authType: .none,
+            body: "",
+            retryOptions: [.retryOnInvalidResponseCode]
+        )
+        let expectedRequest = try router.asHTTPRequest()
+        var requestCount = 0
+
+        networkingService.onDataCall = { request, _, _ in
+            requestCount += 1
+            XCTAssertEqual(request, expectedRequest)
+            return (Data(), HTTPResponse(status: 500))
+        }
+
+        do {
+            _ = try await apiService.getResponse(from: router)
+            XCTFail("Expected internal error")
+        } catch let error as ResponseValidationError where error.status.kind == .serverError {
+            XCTAssertEqual(requestCount, 1)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
+        } catch {
+            XCTFail("Expected internal error, got \(error)")
         }
     }
 
@@ -211,10 +272,10 @@ final class APIRouterServiceTests: XCTestCase {
             body: "",
             retryOptions: [.retryOnInvalidResponseCode]
         )
-        let expectedRequest = try router.asURLRequest()
+        let expectedRequest = try router.asHTTPRequest()
         var requestCount = 0
 
-        networkingService.onDataCall = { request, _ in
+        networkingService.onDataCall = { request, _, _ in
             requestCount += 1
             XCTAssertEqual(request, expectedRequest)
             throw NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut, userInfo: nil)
@@ -227,7 +288,7 @@ final class APIRouterServiceTests: XCTestCase {
             XCTAssertEqual(error.domain, NSURLErrorDomain)
             XCTAssertEqual(error.code, NSURLErrorTimedOut)
             XCTAssertEqual(requestCount, 1)
-            XCTAssertFalse(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertFalse(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
         } catch {
             XCTFail("Expected NSError timeout, got \(error)")
         }
@@ -235,8 +296,8 @@ final class APIRouterServiceTests: XCTestCase {
 
     func testRetryOnAuthorizedError() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        let expectedRequest = try router.asURLRequest()
-        let receivedSuccessResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        let expectedRequest = try router.asHTTPRequest()
+        let receivedSuccessResponse = HTTPResponse(status: 200)
         
         let expectedData = "Hello, World!"
         let responseData = try JSONEncoder().encode(expectedData)
@@ -244,17 +305,17 @@ final class APIRouterServiceTests: XCTestCase {
         let firstRequest = XCTestExpectation(description: "First request should fire")
         let secondRequest = XCTestExpectation(description: "Second request should fire")
         
-        networkingService.onDataCall = { request, _ in
+        networkingService.onDataCall = { request, _, _ in
             XCTAssertEqual(expectedRequest, request)
             firstRequest.fulfill()
 
-            self.networkingService.onDataCall = { request, _ in
+            self.networkingService.onDataCall = { request, _, _ in
                 XCTAssertEqual(expectedRequest, request)
                 secondRequest.fulfill()
                 return (responseData, receivedSuccessResponse)
             }
             
-            return (Data(), HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: "", headerFields: [:])! as URLResponse)
+            return (Data(), HTTPResponse(status: 401))
         }
     
         // Perform the data request, which should trigger token refreshing and retry the request
@@ -267,8 +328,8 @@ final class APIRouterServiceTests: XCTestCase {
         XCTAssertEqual(delegate.firedRequest, expectedRequest)
         XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
         XCTAssertNotNil(delegate.decodedValue as? String)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-        XCTAssertTrue(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+        XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
 
         // Wait for expectations to be fulfilled
         await fulfillment(of: [firstRequest, secondRequest])
@@ -276,17 +337,17 @@ final class APIRouterServiceTests: XCTestCase {
 
     func testRetryAndFailureOnAuthorizedError() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        let expectedRequest = try router.asURLRequest()
-        let receivedResponse = HTTPURLResponse(url: expectedRequest.url!, statusCode: 401, httpVersion: "", headerFields: [:])! as URLResponse
+        let expectedRequest = try router.asHTTPRequest()
+        let receivedResponse = HTTPResponse(status: 401)
         
         let firstRequest = XCTestExpectation(description: "First request should fire")
         let secondRequest = XCTestExpectation(description: "Second request should fire")
 
-        networkingService.onDataCall = { request, _ in
+        networkingService.onDataCall = { request, _, _ in
             XCTAssertEqual(expectedRequest, request)
             firstRequest.fulfill()
 
-            self.networkingService.onDataCall = { request, _ in
+            self.networkingService.onDataCall = { request, _, _ in
                 XCTAssertEqual(expectedRequest, request)
                 secondRequest.fulfill()
                 return (Data(), receivedResponse)
@@ -298,13 +359,13 @@ final class APIRouterServiceTests: XCTestCase {
         do {
             _ = try await apiService.getResponse(from: router)
             XCTFail("Expected failure")
-        } catch ResponseValidationError.unauthorized {
+        } catch let error as ResponseValidationError where error.status == .unauthorized {
             // Ensure that the request was retried and succeeded
             XCTAssertEqual(delegate.receivedResponse, receivedResponse)
             XCTAssertEqual(delegate.firedRequest, expectedRequest)
             XCTAssertEqual(delegate.firedRequestFromResponseReceived, expectedRequest)
-            XCTAssertTrue(mockURLRequestProvider.getURLRequestCalled)
-            XCTAssertTrue(mockURLRequestProvider.getURLRequestOnUnAuthorizedErrorCalled)
+            XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestCalled)
+            XCTAssertTrue(mockHTTPRequestProvider.getHTTPRequestOnUnAuthorizedErrorCalled)
         } catch {
             XCTFail("Received different error than expected: \(error)")
         }
@@ -315,9 +376,9 @@ final class APIRouterServiceTests: XCTestCase {
 
     func testCancellationErrorMapping() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        _ = try router.asURLRequest()
+        _ = try router.asHTTPRequest()
 
-        networkingService.onDataCall = { _, _ in
+        networkingService.onDataCall = { _, _, _ in
             throw NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
         }
 
@@ -333,9 +394,9 @@ final class APIRouterServiceTests: XCTestCase {
 
     func testURLErrorNotConnectedToInternet() async throws {
         let router: BaseAPIRouter<String, String> = Self.mockRouter()
-        _ = try router.asURLRequest()
+        _ = try router.asHTTPRequest()
 
-        networkingService.onDataCall = { _, _ in
+        networkingService.onDataCall = { _, _, _ in
             throw NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet, userInfo: nil)
         }
 
@@ -356,17 +417,17 @@ final class APIRouterServiceTests: XCTestCase {
 
 
 final class MockAPIServiceEventDelegate: @unchecked Sendable, APIServiceEventDelegate {
-    var firedRequest: URLRequest?
+    var firedRequest: HTTPRequest?
     var receivedData: Data?
-    var receivedResponse: URLResponse?
-    var firedRequestFromResponseReceived: URLRequest?
+    var receivedResponse: HTTPResponse?
+    var firedRequestFromResponseReceived: HTTPRequest?
     var decodedValue: Any?
     
-    func requestFired(request: URLRequest) {
+    func requestFired(request: HTTPRequest, body: Data?) {
         firedRequest = request
     }
     
-    func responseReceived(from request: URLRequest, data: Data, response: URLResponse) {
+    func responseReceived(from request: HTTPRequest, body: Data?, data: Data, response: HTTPResponse) {
         firedRequestFromResponseReceived = request
         receivedData = data
         receivedResponse = response

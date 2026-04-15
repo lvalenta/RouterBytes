@@ -15,8 +15,8 @@ struct APIServiceTests {
     @Test("APIService.getDecoded decodes response data and notifies delegate")
     func getDecodedDecodesResponseData() throws {
         let delegate = APIServiceEventDelegateSpy()
-        let apiService = APIService<NetworkingServiceMock>(
-            networkingService: NetworkingServiceMock(),
+        let apiService = APIService<UnusedNetworkingService>(
+            networkingService: UnusedNetworkingService(),
             eventDelegate: delegate
         )
 
@@ -34,7 +34,7 @@ struct APIServiceTests {
 
     @Test("APIService.getDecoded forwards decode errors")
     func getDecodedForwardsDecodeErrors() {
-        let apiService = APIService<NetworkingServiceMock>(networkingService: NetworkingServiceMock())
+        let apiService = APIService<UnusedNetworkingService>(networkingService: UnusedNetworkingService())
 
         do {
             let _: DecodedResponse = try apiService.getDecoded(from: Data("{}".utf8)) { _, _ in
@@ -51,19 +51,19 @@ struct APIServiceTests {
     @Test("APIService.getDecodedHeaderResponse decodes header values and notifies delegate")
     func getDecodedHeaderResponseDecodesHeaders() {
         let delegate = APIServiceEventDelegateSpy()
-        let apiService = APIService<NetworkingServiceMock>(
-            networkingService: NetworkingServiceMock(),
+        let apiService = APIService<UnusedNetworkingService>(
+            networkingService: UnusedNetworkingService(),
             eventDelegate: delegate
         )
-        let httpResponse = HTTPURLResponse(
-            url: URL(string: "https://cleevio.com")!,
-            statusCode: 200,
-            httpVersion: nil,
+        let traceId = HTTPField.Name("X-Trace-Id")!
+        let totalCount = HTTPField.Name("X-Total-Count")!
+        let httpResponse = HTTPResponse(
+            status: 200,
             headerFields: [
-                "X-Trace-Id": "trace-id-123",
-                "X-Total-Count": "7"
+                traceId: "trace-id-123",
+                totalCount: "7"
             ]
-        )!
+        )
         let decoder = JSONDecoder()
 
         do {
@@ -79,27 +79,44 @@ struct APIServiceTests {
         }
     }
 
-    @Test("APIService.getDecodedHeaderResponse throws for non-HTTP response")
-    func getDecodedHeaderResponseThrowsForNonHTTPResponse() {
-        let apiService = APIService<NetworkingServiceMock>(networkingService: NetworkingServiceMock())
-        let response = URLResponse(
-            url: URL(string: "https://cleevio.com")!,
-            mimeType: nil,
-            expectedContentLength: 0,
-            textEncodingName: nil
-        )
-        let decoder = JSONDecoder()
+    @Test("APIService.getDecodedHeaderResponse forwards decode errors")
+    func getDecodedHeaderResponseForwardsDecodeErrors() {
+        let apiService = APIService<UnusedNetworkingService>(networkingService: UnusedNetworkingService())
+        let response = HTTPResponse(status: 200)
 
         do {
-            let _: [String: String] = try apiService.getDecodedHeaderResponse(from: response) { type, data in
-                try decoder.decode(type, from: data)
+            let _: [String: String] = try apiService.getDecodedHeaderResponse(from: response) { _, _ in
+                throw DecodeFailure.failed
             }
-            Issue.record("Expected .notHTTPURLResponse to be thrown.")
-        } catch let error as ResponseValidationError {
-            #expect(error == .notHTTPURLResponse)
+            Issue.record("Expected DecodeFailure.failed to be thrown.")
+        } catch let error as DecodeFailure {
+            #expect(error == .failed)
         } catch {
-            Issue.record("Expected ResponseValidationError.notHTTPURLResponse, got \(error).")
+            Issue.record("Expected DecodeFailure.failed, got \(error).")
         }
+    }
+}
+
+@available(macOS 12.0, *)
+private final class UnusedNetworkingService: NetworkingServiceType {
+    func finishTasksAndInvalidate() { }
+
+    func invalidateAndCancel() { }
+
+    func reset() async { }
+
+    func data(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse) {
+        fatalError("This test double is intentionally unused for network calls")
+    }
+
+    @available(iOS 15.0, *)
+    func data(for request: HTTPRequest, body: Data?, delegate: URLSessionTaskDelegate?) async throws -> (Data, HTTPResponse) {
+        fatalError("This test double is intentionally unused for network calls")
+    }
+
+    @available(iOS 15.0, *)
+    func bytes(for request: HTTPRequest, delegate: URLSessionTaskDelegate?) async throws -> (URLSession.AsyncBytes, HTTPResponse) {
+        fatalError("This test double is intentionally unused for network calls")
     }
 }
 

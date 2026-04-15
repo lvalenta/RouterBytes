@@ -8,7 +8,7 @@
 import Foundation
 
 public struct FailedWithUnAuthorizedError: Error {
-    let reason: Error
+    @usableFromInline let reason: Error
 
     public init(reason: Error) {
         self.reason = reason
