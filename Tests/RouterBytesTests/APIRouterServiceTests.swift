@@ -11,10 +11,10 @@ import RouterBytes
 @available(iOS 15.0, *)
 final class APIRouterServiceTests: XCTestCase {
     var networkingService: NetworkingServiceMock!
-    var apiService: APIRouterService<AuthorizationType, NetworkingServiceMock, MockHTTPRequestProvider<AuthorizationType>>!
+    var apiService: APIRouterService<BearerAuthorizationType, NetworkingServiceMock, MockHTTPRequestProvider<BearerAuthorizationType>>!
     var delegate: MockAPIServiceEventDelegate!
-    var mockHTTPRequestProvider: MockHTTPRequestProvider<AuthorizationType>!
-    
+    var mockHTTPRequestProvider: MockHTTPRequestProvider<BearerAuthorizationType>!
+
     override func setUp() {
         super.setUp()
         

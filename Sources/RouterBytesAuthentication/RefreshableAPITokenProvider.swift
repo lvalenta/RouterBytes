@@ -23,7 +23,7 @@ public actor RefreshableTokenProvider<
     ///   - apiTokenRepository: The `APITokenRepositoryType` to use for storing and retrieving API tokens.
     public init(storage: TokenStorage,
                 refreshProvider: RefreshProvider,
-                authorizationType: AuthorizationType.Type = AuthorizationType.self,
+                authorizationType: BearerAuthorizationType.Type = BearerAuthorizationType.self,
                 apiToken: APIToken.Type = APIToken.self) {
         self.refreshProvider = refreshProvider
         self.storage = storage

@@ -8,6 +8,11 @@
 - Updated `APIServiceEventDelegate.requestFailedWithUnAuthorizedError` to include `error` while keeping `router` (`requestFailedWithUnAuthorizedError(router:error:)`).
 - Kept first-class `HeaderResponse` support in the migrated HTTP Types flow.
 - Added `RetryOptions.retryOnInternalError` and enabled it in `RetryOptions.default`.
+- Renamed `AuthorizationType` to `BearerAuthorizationType`.
+- Extracted nested `AuthorizationType.BearerType` to top-level `TokenAuthorizationType` enum.
+- Made `APITokenAuthorizationType` protocol generic with `associatedtype APIToken`. Consumers must now provide their own conformance instead of relying on the built-in default.
+- Removed default `= BaseAPIToken` from `RefreshTokenAPIRouter.APIToken` and `TokenAPIRouterResponse.APIToken`.
+- Added `AuthorizationType.APIToken == APITokenProvider.APIToken` constraint on `TokenProviderWrappedHTTPRequestProvider`.
 - Added migration documentation for `0.10.x -> 1.0.0` (`MIGRATION.md`).
 
 ## [0.10.1] - 2026-03-30

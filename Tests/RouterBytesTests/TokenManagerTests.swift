@@ -12,23 +12,23 @@ import RouterBytes
 nonisolated(unsafe) fileprivate var dateProvider = DateProviderMock(date: Date())
 
 @available(iOS 15.0, *)
-open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: XCTestCase {
+open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType, Router: RefreshTokenAPIRouter>: XCTestCase where AuthorizationType.APIToken: Codable & RefreshableAPITokenType, AuthorizationType.APIToken: Equatable, AuthorizationType.APIToken.AccessToken: Equatable, AuthorizationType.APIToken.RefreshToken: Equatable, Router.AuthorizationType == AuthorizationType {
     var sut: TokenManager<
         AuthorizationType,
         MockHTTPRequestProvider<AuthorizationType>,
         RefreshableTokenProvider<
-            BaseAPIToken,
-            APITokenRepositoryMock<BaseAPIToken>,
+            AuthorizationType.APIToken,
+            APITokenRepositoryMock<AuthorizationType.APIToken>,
             APIRouterRefreshTokenProvider<
-                BaseAPIToken,
-                RefreshTokenRouter,
+                AuthorizationType.APIToken,
+                Router,
                     APIRouterService<AuthorizationType, NetworkingServiceMock, MockHTTPRequestProvider<AuthorizationType>>,
                 MockHTTPRequestProvider<AuthorizationType>,
                 DateProviderMock
             >
         >
     >!
-    var tokenRepository: APITokenRepositoryMock<BaseAPIToken>!
+    var tokenRepository: APITokenRepositoryMock<AuthorizationType.APIToken>!
     var hostnameProvider: HostnameProvider { httpRequestProvider }
     var httpRequestProvider: MockHTTPRequestProvider<AuthorizationType>!
     public var onRefreshNetworkCall: ((HTTPRequest, Data?) -> (Data, HTTPResponse))!
@@ -54,16 +54,13 @@ open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: X
                 apiService: APIRouterService(networkingService: networkingService, httpRequestProvider: httpRequestProvider),
                 hostnameProvider: httpRequestProvider,
                 dateProvider: dateProvider
-            ))
+            )),
+            authorizationType: AuthorizationType.self
         )
     }
     
     func setLoggedIn(expiration: Date = Date.distantFuture) {
-        tokenRepository.apiTokenStream.store(.init(
-            accessToken: UUID().uuidString,
-            refreshToken: UUID().uuidString,
-            expiration: expiration
-        ))
+        fatalError("Logged in has to be set")
     }
 
     func refreshingHelper(signedInTokenExpiration: Date,
@@ -95,7 +92,7 @@ open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: X
         }
         """.data(using: .utf8)!
 
-        let tokenResponse = try! JSONDecoder().decode(BaseAPIToken.self, from: apiTokenInData)
+        let tokenResponse = try! JSONDecoder().decode(AuthorizationType.APIToken.self, from: apiTokenInData)
 
         let expectation = XCTestExpectation(description: "TokenManager should try to refresh token")
 
@@ -133,7 +130,15 @@ open class TokenManagerTestCase<AuthorizationType: APITokenAuthorizationType>: X
 }
     
 @available(iOS 15.0, *)
-final class TokenManagerTests: TokenManagerTestCase<AuthorizationType> {
+final class TokenManagerTests: TokenManagerTestCase<BearerAuthorizationType, RefreshTokenRouter> {
+    override func setLoggedIn(expiration: Date = Date.distantFuture) {
+        tokenRepository.apiTokenStream.store(.init(
+            accessToken: UUID().uuidString,
+            refreshToken: UUID().uuidString,
+            expiration: expiration
+        ))
+    }
+
     func testRefreshTokenNotLoggedIn() async {
         do {
             _ = try await sut.tokenProvider.apiToken.refreshToken
@@ -182,7 +187,15 @@ final class TokenManagerTests: TokenManagerTestCase<AuthorizationType> {
 }
 
 @available(iOS 15.0, *)
-final class TokenManagerHTTPRequestProviderTests: TokenManagerTestCase<RouterBytes.AuthorizationType> {
+final class TokenManagerHTTPRequestProviderTests: TokenManagerTestCase<RouterBytes.BearerAuthorizationType, RefreshTokenRouter> {
+    override func setLoggedIn(expiration: Date = Date.distantFuture) {
+        tokenRepository.apiTokenStream.store(.init(
+            accessToken: UUID().uuidString,
+            refreshToken: UUID().uuidString,
+            expiration: expiration
+        ))
+    }
+
     func testRefreshOnError() async throws {
         try await refreshingHelper(signedInTokenExpiration: Date.distantFuture, forceRefresh: false) {
             let router = Self.mockRouter(type: .none)
@@ -243,7 +256,7 @@ final class TokenManagerHTTPRequestProviderTests: TokenManagerTestCase<RouterByt
         }
     }
 
-    static private func mockRouter(type: AuthorizationType) -> BaseAPIRouter<String, String> {
+    static private func mockRouter(type: BearerAuthorizationType) -> BaseAPIRouter<String, String> {
         BaseAPIRouter(hostname: URL(string: "https://cleevio.com")!, path: "/blog", authType: type, body: "")
     }
 }
@@ -294,7 +307,7 @@ struct RefreshTokenRouter: APIRouter {
     var jsonDecoder: JSONDecoder = .init()
     var jsonEncoder: JSONEncoder = .init()
     var path: Path { "" }
-    var authType: RouterBytes.AuthorizationType { .bearer(.refreshToken) }
+    var authType: RouterBytes.BearerAuthorizationType { .bearer(.refreshToken) }
 
     func decode<T>(_ type: T.Type, from data: Data) throws -> T where T : Decodable {
         try jsonDecoder.decode(type, from: data)
@@ -308,5 +321,34 @@ struct RefreshTokenRouter: APIRouter {
 extension RefreshTokenRouter: RefreshTokenAPIRouter {
     init(previousToken: BaseAPIToken) {
         self.init()
+    }
+}
+
+@available(macOS 10.15.0, *)
+extension RouterBytes.BearerAuthorizationType: APITokenAuthorizationType {
+    public func authorizedRequest(request: HTTPRequest, with apiToken: BaseAPIToken) -> HTTPRequest {
+        switch self {
+        case let .bearer(tokenType):
+            let token: String = switch tokenType {
+            case .accessToken:
+                apiToken.accessToken.description
+            case .refreshToken:
+                apiToken.refreshToken.description
+            }
+
+            return request.withBearerToken(token)
+        case .none:
+            return request
+        }
+    }
+
+    public func authorizedRequest(request: HTTPRequest, with provider: some APITokenProvider<BaseAPIToken>) async throws -> HTTPRequest {
+        switch self {
+        case .bearer:
+            let apiToken = try await provider.apiToken
+            return authorizedRequest(request: request, with: apiToken)
+        case .none:
+            return request
+        }
     }
 }
