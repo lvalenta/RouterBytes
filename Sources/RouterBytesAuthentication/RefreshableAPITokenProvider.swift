@@ -75,19 +75,22 @@ public actor RefreshableTokenProvider<
         let refreshingTask = Task { [storage, refreshProvider] in
             let currentToken = try await storage.apiToken
 
-            if try await Self.tokenNeedsRefresh(
+            let tokenState = try await Self.accessTokenState(
                 forceRefresh: forceRefresh,
                 currentToken: currentToken,
                 refreshProvider: refreshProvider
-            ) {
+            )
+
+            switch tokenState {
+            case .expired:
+                return try await refreshedToken(currentToken: currentToken)
+            case .activeShouldAttemptRefresh:
                 do {
-                    let refreshedToken = try await refreshProvider.getRefreshedAPIToken(currentToken: currentToken)
-                    try await storage.setAPIToken(refreshedToken)
-                    return refreshedToken
+                    return try await refreshedToken(currentToken: currentToken)
                 } catch {
-                    throw FailedWithUnAuthorizedError(reason: error)
+                    return currentToken
                 }
-            } else {
+            case .active:
                 return currentToken
             }
         }
@@ -98,13 +101,20 @@ public actor RefreshableTokenProvider<
         return try await refreshingTask.value
     }
 
-    private func refreshIsNeeded(forceRefresh: Bool, currentToken: APIToken) async throws -> Bool {
-        if forceRefresh { return true }
-        return try await refreshProvider.tokenNeedsToBeRefreshed(currentToken: currentToken)
+    private func refreshedToken(currentToken: APIToken) async throws -> APIToken {
+        do {
+            let refreshedToken = try await refreshProvider.getRefreshedAPIToken(currentToken: currentToken)
+            try await storage.setAPIToken(refreshedToken)
+            return refreshedToken
+        } catch let error as ResponseValidationError where error.status == .unauthorized {
+            throw FailedWithUnAuthorizedError(reason: error)
+        } catch let error as ResponseValidationError where error.status == .unauthorized {
+           throw FailedWithUnAuthorizedError(reason: error)
+        }
     }
 
-    static private func tokenNeedsRefresh(forceRefresh: Bool, currentToken: APIToken, refreshProvider: RefreshProvider) async throws -> Bool {
-        guard !forceRefresh else { return true }
-        return try await refreshProvider.tokenNeedsToBeRefreshed(currentToken: currentToken)
+    static private func accessTokenState(forceRefresh: Bool, currentToken: APIToken, refreshProvider: RefreshProvider) async throws -> AccessTokenState {
+        guard !forceRefresh else { return .expired }
+        return try await refreshProvider.accessTokenState(currentToken: currentToken)
     }
 }

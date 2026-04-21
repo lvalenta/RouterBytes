@@ -1,5 +1,54 @@
 # RouterBytes Migration Guide
 
+## Migrating to 1.0.1 from 1.0.0
+
+`1.0.1` addresses an API change that was omitted from `1.0.0`. If you are upgrading from `0.10.x`, apply this section in addition to the `0.10.x -> 1.0.0` guide below.
+
+### Access Token State
+
+The boolean `needsToBeRefreshed(...)` APIs were replaced with a tri-state `AccessTokenState` so the refresh provider can distinguish between a token that is still valid but approaching expiration and one that has already expired.
+
+```swift
+public enum AccessTokenState: Sendable {
+    case expired
+    case activeShouldAttemptRefresh
+    case active
+}
+```
+
+| 1.0.0 | 1.0.1 |
+| --- | --- |
+| `RefreshableAPITokenType.needsToBeRefreshed(currentDate:maximumTimeUntilExpiration:) -> Bool` | `RefreshableAPITokenType.accessTokenState(currentDate:) -> AccessTokenState` |
+| `RefreshableAPITokenType.needsToBeRefreshed(currentDate:) -> Bool` | removed — call `accessTokenState(currentDate:)` |
+| `RefreshTokenProvider.tokenNeedsToBeRefreshed(currentToken:) -> Bool` | `RefreshTokenProvider.accessTokenState(currentToken:) -> AccessTokenState` |
+
+Update any custom `RefreshableAPITokenType` or `RefreshTokenProvider` conformances:
+
+```swift
+// 1.0.0
+public func needsToBeRefreshed(currentDate: Date, maximumTimeUntilExpiration: TimeInterval) -> Bool {
+    expiration < currentDate.advanced(by: maximumTimeUntilExpiration)
+}
+
+// 1.0.1
+public func accessTokenState(currentDate: Date) -> AccessTokenState {
+    if expiration < currentDate { return .expired }
+    return expiration < currentDate.advanced(by: 300) ? .activeShouldAttemptRefresh : .active
+}
+```
+
+### Refresh Semantics
+
+`RefreshableTokenProvider` now acts on the new state:
+
+- `.expired` — refresh is mandatory. A failure is propagated to callers as `FailedWithUnAuthorizedError`.
+- `.activeShouldAttemptRefresh` — refresh is attempted proactively. If it fails, the current (still valid) token is returned and no error is thrown. The next `.expired` decision will surface the problem.
+- `.active` — the current token is returned without contacting the refresh endpoint.
+
+### Unauthorized Delegate Callbacks
+
+`APIService.getData` tightened the catch clause around the unauthorized retry path so only `FailedWithUnAuthorizedError` is forwarded to `APIServiceEventDelegate.requestFailedWithUnAuthorizedError` on the retry attempt. Other errors thrown while re-issuing the request (e.g. transport failures, `ResponseValidationError` for non-401 statuses) propagate without invoking the unauthorized delegate callback.
+
 ## Migrating to 1.0.0 from 0.10.x
 
 `1.0.0` migrates RouterBytes networking primitives to Swift HTTP Types and keeps first-class support for `HeaderResponse`.

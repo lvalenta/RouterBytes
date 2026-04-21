@@ -28,27 +28,19 @@ public protocol RefreshableAPITokenType: APITokenType {
     /// The refresh token.
     var refreshToken: RefreshToken { get }
 
-    /// Returns a Boolean value indicating whether the token needs to be refreshed.
+    /// Returns a AccessTokenState value indicating whether the token needs to be refreshed.
     ///
     /// - Parameters:
     ///   - currentDate: The current date.
-    ///   - maximumTimeUntilExpiration: The maximum time interval until the token expires.
     ///
-    /// - Returns: `true` if the token needs to be refreshed; otherwise, `false`.
-    func needsToBeRefreshed(currentDate: Date, maximumTimeUntilExpiration: TimeInterval) -> Bool
+    /// - Returns: `AccessTokenState`.
+    func accessTokenState(currentDate: Date) -> AccessTokenState
 }
 
-public extension RefreshableAPITokenType {
-    
-    /// Returns a Boolean value indicating whether the token needs to be refreshed, using a default time interval of 300 seconds.
-    ///
-    /// - Parameter currentDate: The current date.
-    ///
-    /// - Returns: `true` if the token needs to be refreshed; otherwise, `false`.
-    @inlinable
-    func needsToBeRefreshed(currentDate: Date) -> Bool {
-        needsToBeRefreshed(currentDate: currentDate, maximumTimeUntilExpiration: 300)
-    }
+public enum AccessTokenState: Sendable, Equatable {
+    case expired
+    case activeShouldAttemptRefresh
+    case active
 }
 
 /// A basic implementation of APITokenType.
@@ -84,11 +76,14 @@ public struct BaseAPIToken: RefreshableAPITokenType, Equatable {
     ///
     /// - Parameters:
     ///   - currentDate: The current date.
-    ///   - maximumTimeUntilExpiration: The maximum time interval until the token expires.
     ///
     /// - Returns: `true` if the token needs to be refreshed; otherwise, `false`.
     @inlinable
-    public func needsToBeRefreshed(currentDate: Date, maximumTimeUntilExpiration: TimeInterval) -> Bool {
-        expiration < currentDate.advanced(by: maximumTimeUntilExpiration)
+    public func accessTokenState(currentDate: Date) -> AccessTokenState {
+        if expiration < currentDate {
+            return .expired
+        }
+        let shouldAttemptExpiration = expiration < currentDate.advanced(by: 300)
+        return shouldAttemptExpiration ? .activeShouldAttemptRefresh : .active
     }
 }

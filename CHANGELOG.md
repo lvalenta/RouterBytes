@@ -1,5 +1,14 @@
 # RouterBytes Changelog
 
+## [1.0.1] - 2026-04-21
+
+> Addresses an API change that was omitted from `1.0.0`. See `MIGRATION.md` for the upgrade path.
+
+- Replaced `RefreshableAPITokenType.needsToBeRefreshed(currentDate:maximumTimeUntilExpiration:)` (and its `needsToBeRefreshed(currentDate:)` default) with `accessTokenState(currentDate:)` returning the new `AccessTokenState` enum (`.expired`, `.activeShouldAttemptRefresh`, `.active`).
+- Renamed `RefreshTokenProvider.tokenNeedsToBeRefreshed(currentToken:)` to `accessTokenState(currentToken:)` returning `AccessTokenState`.
+- `RefreshableTokenProvider` now distinguishes between hard-expired tokens (refresh is required and failure is propagated as `FailedWithUnAuthorizedError`) and soon-to-expire tokens (best-effort refresh; falls back to the current token on failure).
+- `APIService.getData` narrows the nested retry-path catch to `FailedWithUnAuthorizedError`, so only that error triggers `APIServiceEventDelegate.requestFailedWithUnAuthorizedError` on the retry attempt.
+
 ## [1.0.0] - 2026-04-12
 - Migrated RouterBytes networking primitives to Swift HTTP Types (`HTTPRequest`, `HTTPResponse`, `HTTPFields`, `HTTPMethod`).
 - Updated Router/Service/Provider/Delegate APIs to use HTTP Types end-to-end.
