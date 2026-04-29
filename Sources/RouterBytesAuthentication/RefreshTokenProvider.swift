@@ -17,7 +17,7 @@ public protocol RefreshTokenProvider<APIToken>: Sendable {
     /// - Returns: A refreshed access token.
     func getRefreshedAPIToken(currentToken: APIToken) async throws -> APIToken
 
-    func tokenNeedsToBeRefreshed(currentToken: APIToken) async throws -> Bool
+    func accessTokenState(currentToken: APIToken) async throws -> AccessTokenState
 }
 
 /// A simple implementation of RefreshTokenProvider that uses its provided APIService and through provided RefreshTokenAPIRouter returns refreshed APIToken
@@ -31,7 +31,8 @@ public struct APIRouterRefreshTokenProvider<
 >: RefreshTokenProvider where RefreshTokenAPIRouter.APIToken == APIToken {
 
     private let apiService: APIService
-    private let dateProvider: DateProvider
+    @usableFromInline
+    let dateProvider: DateProvider
     let hostnameProvider: HostnameProvider
 
     public init(apiService: APIService,
@@ -60,7 +61,8 @@ public struct APIRouterRefreshTokenProvider<
         return response
     }
 
-    public func tokenNeedsToBeRefreshed(currentToken: APIToken) async throws -> Bool {
-        currentToken.needsToBeRefreshed(currentDate: dateProvider.currentDate())
+    @inlinable
+    public func accessTokenState(currentToken: APIToken) async throws -> AccessTokenState {
+        currentToken.accessTokenState(currentDate: dateProvider.currentDate())
     }
 }
