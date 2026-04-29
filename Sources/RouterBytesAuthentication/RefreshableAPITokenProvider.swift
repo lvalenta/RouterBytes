@@ -108,7 +108,7 @@ public actor RefreshableTokenProvider<
             return refreshedToken
         } catch let error as ResponseValidationError where error.status == .unauthorized {
             throw FailedWithUnAuthorizedError(reason: error)
-        } catch let error as ResponseValidationError where error.status == .unauthorized {
+        } catch let error as ResponseValidationError where error.status == .forbidden {
            throw FailedWithUnAuthorizedError(reason: error)
         }
     }
