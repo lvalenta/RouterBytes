@@ -13,9 +13,13 @@ public struct ResponseValidationError: Error, Equatable, Sendable {
     /// HTTP status that caused validation to fail.
     public let status: HTTPResponse.Status
 
-    /// Creates a validation error with explicit status.
-    public init(status: HTTPResponse.Status) {
+    /// Response body data.
+    public let data: Data
+
+    /// Creates a validation error with explicit status and data.
+    public init(status: HTTPResponse.Status, data: Data) {
         self.status = status
+        self.data = data
     }
 
     /// Initializes a `ResponseValidationError` instance from the provided `HTTPResponse`.
@@ -23,15 +27,17 @@ public struct ResponseValidationError: Error, Equatable, Sendable {
     /// `2xx` and `3xx` responses are considered valid and return `nil`.
     /// Any other response maps to a validation error containing the response status.
     ///
-    /// - Parameter response: The `HTTPResponse` to validate.
-    public init?(response: HTTPResponse) {
+    /// - Parameters:
+    ///   - response: The `HTTPResponse` to validate.
+    ///   - data: The response body data.
+    public init?(response: HTTPResponse, data: Data) {
         let status = response.status
 
         switch status.kind {
         case .successful, .redirection:
             return nil
         case .clientError, .serverError, .informational, .invalid:
-            self = .init(status: status)
+            self = .init(status: status, data: data)
         }
     }
 }

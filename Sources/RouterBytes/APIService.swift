@@ -303,7 +303,7 @@ open class APIService<NetworkingService: NetworkingServiceType>: @unchecked Send
      */
     @inlinable
     open func checkResponse(from data: Data, with response: HTTPResponse) throws {
-        if let error = ResponseValidationError(response: response) {
+        if let error = ResponseValidationError(response: response, data: data) {
             throw error
         }
     }
