@@ -18,6 +18,7 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
     private var decodedProviders: [ObjectIdentifier: (Any) async throws -> Any] = [:]
     private var dataFromNetworkProviders: [RequestBodyKey: (HTTPRequest, Data?) async throws -> (Data, HTTPResponse)] = [:]
     private var dataProviders: [ObjectIdentifier: (Any) async throws -> (Data, HTTPResponse)] = [:]
+    private var fileProviders: [ObjectIdentifier: (Any) async throws -> (URL, HTTPResponse)] = [:]
 
     private struct RequestBodyKey: Hashable {
         let request: HTTPRequest
@@ -44,6 +45,18 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
         }
     }
     
+    public func registerFileProvider<Router: RouterBytes.DownloadRouter>(
+        for routerType: Router.Type,
+        fileProvider: @escaping (Router) throws -> (URL, HTTPResponse)
+    ) {
+        fileProviders[ObjectIdentifier(routerType)] = { router in
+            guard let router = router as? Router else {
+                fatalError("File provider not registered")
+            }
+            return try fileProvider(router)
+        }
+    }
+
     public func registerHTTPRequestProvider<Router: RouterBytes.APIRouter>(
         for routerType: Router.Type,
         httpRequestProvider: @escaping (Router) throws -> HTTPRequest
@@ -124,6 +137,15 @@ public final class MockAPIService: RouterBytes.APIRouterServiceType, @unchecked 
         return try await dataProvider(router)
     }
     
+    @available(iOS 15.0, *)
+    public func getFile<RouterType>(for router: RouterType) async throws -> (URL, HTTPResponse) where RouterType : RouterBytes.DownloadRouter, AuthorizationType == RouterType.AuthorizationType {
+        guard let fileProvider = fileProviders[ObjectIdentifier(RouterType.self)] else {
+            fatalError("File provider not registered")
+        }
+
+        return try await fileProvider(router)
+    }
+
     public func getDataFromNetwork(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse) {
         let key = RequestBodyKey(request: request, body: body)
 

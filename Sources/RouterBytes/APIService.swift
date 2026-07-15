@@ -124,6 +124,37 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
     }
 
     /**
+     Downloads a file for the given `DownloadRouter` and returns its temporary file `URL`.
+
+     - Parameter router: The `DownloadRouter` object representing the network request.
+     - Returns: The temporary file `URL` the response was downloaded to. The file is **not**
+       removed automatically; the caller is responsible for moving it somewhere persistent.
+     - Throws: An error if the network request fails.
+     - Note: `RouterType.AuthorizationType` must match the `AuthorizationType` of the `APIService` instance.
+     */
+    @available(iOS 15.0, *)
+    @inlinable
+    final public func getDownloadResponse<RouterType: DownloadRouter>(from router: RouterType) async throws -> URL where RouterType.AuthorizationType == AuthorizationType, RouterType.HeaderResponse == Void {
+        try await getFile(for: router).0
+    }
+
+    /**
+     Downloads a file for the given `DownloadRouter`, returning its temporary file `URL` and the
+     decoded header response.
+
+     - Parameter router: The `DownloadRouter` object representing the network request.
+     - Returns: A tuple of the temporary file `URL` (not removed automatically) and the decoded `HeaderResponse`.
+     - Throws: An error if the network request or header decoding fails.
+     - Note: `RouterType.AuthorizationType` must match the `AuthorizationType` of the `APIService` instance.
+     */
+    @available(iOS 15.0, *)
+    @inlinable
+    final public func getDownloadResponse<RouterType: DownloadRouter>(from router: RouterType) async throws -> (URL, RouterType.HeaderResponse) where RouterType.AuthorizationType == AuthorizationType, RouterType.HeaderResponse: Decodable {
+        let (fileURL, response) = try await getFile(for: router)
+        return (fileURL, try getDecodedHeaderResponse(from: response, decode: router.decode))
+    }
+
+    /**
      Fetches data from the network for the specified `APIRouter`.
      
      This method fetches the data from the network using the `HTTPRequest` created by the `getSignedHTTPRequest(from:)` method of the given `APIRouter`. The method also supports retry functionality, improving the reliability of data retrieval by retrying the request once if it fails due to an invalid response code, an internal/server error, or a timeout error. If the request fails with an unauthorized error, it will attempt to fetch the data again using the `getSignedHTTPRequestOnUnAuthorizedError(from:)` method, and notify the event delegate if the second attempt also fails.
@@ -138,14 +169,60 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
     open func getData<RouterType: APIRouter>(for router: RouterType) async throws -> (Data, HTTPResponse) where RouterType.AuthorizationType == AuthorizationType {
         let body = try router.encodedBody()
 
+        return try await performWithRetry(for: router) { [self] request in
+            try await getDataFromNetwork(for: request, body: body)
+        }
+    }
+
+    /**
+     Downloads a file from the network for the specified `DownloadRouter`.
+
+     Streams the response straight to a temporary file on disk (via `URLSession.download(for:)`)
+     rather than loading it into memory. Authorization, retry behavior, and token refresh work
+     exactly like `getData(for:)` — this shares the same retry logic via `performWithRetry(for:transfer:)`.
+
+     - Parameter router: The `DownloadRouter` object representing the network request.
+     - Returns: The temporary file `URL` the response was downloaded to and the `HTTPResponse`.
+       The file is **not** removed automatically; the caller is responsible for moving it.
+     - Throws: An error if the network request fails.
+     - Note: `RouterType.AuthorizationType` must match the `AuthorizationType` of the `APIService` instance.
+     */
+    @available(iOS 15.0, *)
+    @discardableResult
+    @inlinable
+    open func getFile<RouterType: DownloadRouter>(for router: RouterType) async throws -> (URL, HTTPResponse) where RouterType.AuthorizationType == AuthorizationType {
+        try await performWithRetry(for: router) { [self] request in
+            try await getFileFromNetwork(for: request)
+        }
+    }
+
+    /**
+     Performs a network transfer for the given router with retry and unauthorized-refresh handling.
+
+     Fetches an authorized `HTTPRequest` via `getHTTPRequest(from:)` and runs `transfer`. If the
+     transfer fails with a retriable error (server/invalid/timeout, per the router's `retryOptions`),
+     it retries once. On an unauthorized error it fetches a refreshed request via
+     `getHTTPRequestOnUnAuthorizedError(from:)` and retries. This is transfer-agnostic, so both the
+     data (`getData`) and file (`getFile`) paths share identical retry/auth behavior.
+
+     - Parameter router: The `APIRouter` object representing the network request.
+     - Parameter transfer: A closure performing the actual transfer for a given `HTTPRequest`.
+     - Returns: The payload and `HTTPResponse` produced by `transfer`.
+     - Throws: An error if the network request fails.
+     */
+    @inlinable
+    open func performWithRetry<RouterType: APIRouter, Payload>(
+        for router: RouterType,
+        transfer: (HTTPRequest) async throws -> (Payload, HTTPResponse)
+    ) async throws -> (Payload, HTTPResponse) where RouterType.AuthorizationType == AuthorizationType {
         do {
-            return try await getDataFromNetwork(for: try await getHTTPRequest(from: router), body: body)
+            return try await transfer(try await getHTTPRequest(from: router))
         } catch let error as ResponseValidationError where error.status.kind == .serverError && router.retryOptions.contains(.retryOnInternalError) {
-            return try await getDataFromNetwork(for: try await getHTTPRequest(from: router), body: body)
+            return try await transfer(try await getHTTPRequest(from: router))
         } catch let error as ResponseValidationError where (error.status.kind == .informational || error.status.kind == .invalid) && router.retryOptions.contains(.retryOnInvalidResponseCode) {
-            return try await getDataFromNetwork(for: try await getHTTPRequest(from: router), body: body)
+            return try await transfer(try await getHTTPRequest(from: router))
         } catch let error as NSError where error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut && router.retryOptions.contains(.retryOnTimeOut) {
-            return try await getDataFromNetwork(for: try await getHTTPRequest(from: router), body: body)
+            return try await transfer(try await getHTTPRequest(from: router))
         } catch let error as NSError where error.code == NSURLErrorCancelled {
             throw CancellationError()
         } catch let error as NSError where error.code == -1009 {
@@ -153,7 +230,7 @@ open class APIRouterService<AuthorizationType, NetworkingService: NetworkingServ
         } catch let error as ResponseValidationError where error.status == .unauthorized {
             do {
                 let request = try await getHTTPRequestOnUnAuthorizedError(from: router)
-                return try await getDataFromNetwork(for: request, body: body)
+                return try await transfer(request)
             } catch let error as FailedWithUnAuthorizedError {
                 await eventDelegate?.requestFailedWithUnAuthorizedError(router: router, error: error)
                 throw error
@@ -244,9 +321,34 @@ public protocol APIRouterServiceType<AuthorizationType>: RouterBytes.APIServiceT
 
     func getData<RouterType: APIRouter>(for router: RouterType) async throws -> (Data, HTTPResponse) where RouterType.AuthorizationType == AuthorizationType
 
+    @available(iOS 15.0, *)
+    func getFile<RouterType: DownloadRouter>(for router: RouterType) async throws -> (URL, HTTPResponse) where RouterType.AuthorizationType == AuthorizationType
+
+    @available(iOS 15.0, *)
+    func getDownloadResponse<RouterType: DownloadRouter>(from router: RouterType) async throws -> URL where RouterType.AuthorizationType == AuthorizationType, RouterType.HeaderResponse == Void
+
+    @available(iOS 15.0, *)
+    func getDownloadResponse<RouterType: DownloadRouter>(from router: RouterType) async throws -> (URL, RouterType.HeaderResponse) where RouterType.AuthorizationType == AuthorizationType, RouterType.HeaderResponse: Decodable
+
     func getHTTPRequest<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType
 
     func getHTTPRequestOnUnAuthorizedError<RouterType: APIRouter>(from router: RouterType) async throws -> HTTPRequest where RouterType.AuthorizationType == AuthorizationType
+}
+
+@available(macOS 12.0, *)
+public extension APIRouterServiceType {
+    /// Default implementation deriving the download URL from `getFile(for:)`.
+    @available(iOS 15.0, *)
+    func getDownloadResponse<RouterType: DownloadRouter>(from router: RouterType) async throws -> URL where RouterType.AuthorizationType == AuthorizationType, RouterType.HeaderResponse == Void {
+        try await getFile(for: router).0
+    }
+
+    /// Default implementation deriving the download URL and decoded header response from `getFile(for:)`.
+    @available(iOS 15.0, *)
+    func getDownloadResponse<RouterType: DownloadRouter>(from router: RouterType) async throws -> (URL, RouterType.HeaderResponse) where RouterType.AuthorizationType == AuthorizationType, RouterType.HeaderResponse: Decodable {
+        let (fileURL, response) = try await getFile(for: router)
+        return (fileURL, try getDecodedHeaderResponse(from: response, decode: router.decode))
+    }
 }
 
 @available(macOS 12.0, *)
@@ -274,13 +376,33 @@ open class APIService<NetworkingService: NetworkingServiceType>: @unchecked Send
 
     final public func getDataFromNetwork(for request: HTTPRequest, body: Data?) async throws -> (Data, HTTPResponse) {
         eventDelegate?.requestFired(request: request, body: body)
-        
+
         let (data, response) = try await networkingService.data(for: request, body: body)
         eventDelegate?.responseReceived(from: request, body: body, data: data, response: response)
 
         try checkResponse(from: data, with: response)
-        
+
         return (data, response)
+    }
+
+    /// Downloads a file for the given request, streaming it to a temporary file on disk
+    /// rather than loading it into memory. Validates the response status only (no body is read).
+    ///
+    /// - Parameter request: The `HTTPRequest` to use for the download.
+    /// - Returns: The temporary file `URL` the response was downloaded to and the `HTTPResponse`.
+    /// - Throws: A `ResponseValidationError` if the response status is not valid.
+    @available(iOS 15.0, *)
+    final public func getFileFromNetwork(for request: HTTPRequest) async throws -> (URL, HTTPResponse) {
+        eventDelegate?.requestFired(request: request, body: nil)
+
+        let (fileURL, response) = try await networkingService.download(for: request)
+        eventDelegate?.downloadResponseReceived(from: request, fileURL: fileURL, response: response)
+
+        // Validate the status only — reading the downloaded file would defeat the
+        // purpose of streaming it to disk, so an empty body is passed.
+        try checkResponse(from: Data(), with: response)
+
+        return (fileURL, response)
     }
 
     @inlinable

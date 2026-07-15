@@ -49,6 +49,17 @@ public protocol APIServiceEventDelegate: Sendable {
     ///   - response: The `HTTPResponse` object for the response.
     func responseReceived(from request: HTTPRequest, body: Data?, data: Data, response: HTTPResponse)
 
+    /// Notifies the delegate that a file download response has been received.
+    ///
+    /// Unlike `responseReceived(from:body:data:response:)`, the response body was
+    /// streamed to a file rather than loaded into memory, so no `Data` is provided.
+    ///
+    /// - Parameters:
+    ///   - request: The HTTP request instance that was fired.
+    ///   - fileURL: The temporary file URL the response was downloaded to.
+    ///   - response: The `HTTPResponse` object for the response.
+    func downloadResponseReceived(from request: HTTPRequest, fileURL: URL, response: HTTPResponse)
+
     /// Notifies the delegate that a response has been decoded.
     ///
     /// - Parameter value: The decoded value of type `T`.
@@ -70,6 +81,10 @@ public extension APIServiceEventDelegate {
     /// Default implementation of `responseReceived(data:response:)`.
     @inlinable
     func responseReceived(from request: HTTPRequest, body: Data?, data: Data, response: HTTPResponse) { }
+
+    /// Default implementation of `downloadResponseReceived(from:fileURL:response:)`.
+    @inlinable
+    func downloadResponseReceived(from request: HTTPRequest, fileURL: URL, response: HTTPResponse) { }
 
     /// Default implementation of `responseDecoded(_:)`.
     @inlinable

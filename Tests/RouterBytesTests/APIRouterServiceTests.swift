@@ -422,17 +422,26 @@ final class MockAPIServiceEventDelegate: @unchecked Sendable, APIServiceEventDel
     var receivedResponse: HTTPResponse?
     var firedRequestFromResponseReceived: HTTPRequest?
     var decodedValue: Any?
-    
+    var downloadFileURL: URL?
+    var firedRequestFromDownloadResponseReceived: HTTPRequest?
+    var downloadReceivedResponse: HTTPResponse?
+
     func requestFired(request: HTTPRequest, body: Data?) {
         firedRequest = request
     }
-    
+
     func responseReceived(from request: HTTPRequest, body: Data?, data: Data, response: HTTPResponse) {
         firedRequestFromResponseReceived = request
         receivedData = data
         receivedResponse = response
     }
-    
+
+    func downloadResponseReceived(from request: HTTPRequest, fileURL: URL, response: HTTPResponse) {
+        firedRequestFromDownloadResponseReceived = request
+        downloadFileURL = fileURL
+        downloadReceivedResponse = response
+    }
+
     func responseDecoded<T>(_ value: T) {
         decodedValue = value
     }

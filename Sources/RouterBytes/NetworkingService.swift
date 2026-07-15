@@ -61,6 +61,17 @@ public protocol NetworkingServiceType: Sendable {
     /// To wait until the session finishes transferring data and receive it in a single Data instance, use `data(for:delegate:)`.
     @available(iOS 15.0, *)
     func bytes(for request: HTTPRequest, delegate: (URLSessionTaskDelegate)?) async throws -> (URLSession.AsyncBytes, HTTPResponse)
+
+    /// Downloads the contents of a URL based on the specified HTTP request and stores the result in a temporary file.
+    ///
+    /// Use this method to stream a response straight to disk without ever loading it into memory as `Data` — ideal for large files. To receive the response as an in-memory `Data` instead, use `data(for:body:)`.
+    ///
+    /// - Parameter request: An HTTP request object that provides request-specific information.
+    /// - Parameter delegate: A delegate that receives life cycle and authentication challenge callbacks as the transfer progresses.
+    ///
+    /// - Returns: An asynchronously-delivered tuple containing the `URL` of the downloaded temporary file and an `HTTPResponse`. The file is **not** removed automatically; the caller is responsible for moving it somewhere persistent.
+    @available(iOS 15.0, *)
+    func download(for request: HTTPRequest, delegate: (URLSessionTaskDelegate)?) async throws -> (URL, HTTPResponse)
 }
 
 @available(macOS 12.0, *)
@@ -73,6 +84,16 @@ public extension NetworkingServiceType {
     @inlinable
     func bytes(for request: HTTPRequest) async throws -> (URLSession.AsyncBytes, HTTPResponse) {
         try await bytes(for: request, delegate: nil)
+    }
+
+    /// Downloads the contents of a URL based on the specified HTTP request and stores the result in a temporary file.
+    ///
+    /// - Parameter request: An HTTP request object that provides request-specific information.
+    /// - Returns: A tuple containing the `URL` of the downloaded temporary file and an `HTTPResponse`.
+    @available(iOS 15.0, *)
+    @inlinable
+    func download(for request: HTTPRequest) async throws -> (URL, HTTPResponse) {
+        try await download(for: request, delegate: nil)
     }
 }
 
@@ -96,6 +117,10 @@ extension URLSession: NetworkingServiceType {
 
         return try await data(for: request, delegate: delegate)
     }
+
+    // `download(for:delegate:)` is satisfied directly by the `HTTPTypesFoundation`
+    // overload on `URLSession`, which streams to a temporary file via a
+    // `URLSessionDownloadTask` — no in-memory `Data` buffering.
 }
 
 @available(macOS 12.0, *)
@@ -103,12 +128,15 @@ extension URLSession: NetworkingServiceType {
 public final class NetworkingServiceMock: @unchecked Sendable, NetworkingServiceType {
     public var onDataCall: ((HTTPRequest, Data?, URLSessionDelegate?) async throws -> (Data, HTTPResponse))?
     public var onBytesCall: ((HTTPRequest, URLSessionTaskDelegate?) async throws -> (URLSession.AsyncBytes, HTTPResponse))?
+    public var onDownloadCall: ((HTTPRequest, URLSessionTaskDelegate?) async throws -> (URL, HTTPResponse))?
 
     @inlinable
     public init(onDataCall: ((HTTPRequest, Data?, URLSessionDelegate?) async throws -> (Data, HTTPResponse))? = nil,
-                onBytesCall: ((HTTPRequest, URLSessionTaskDelegate?) async throws -> (URLSession.AsyncBytes, HTTPResponse))? = nil) {
+                onBytesCall: ((HTTPRequest, URLSessionTaskDelegate?) async throws -> (URLSession.AsyncBytes, HTTPResponse))? = nil,
+                onDownloadCall: ((HTTPRequest, URLSessionTaskDelegate?) async throws -> (URL, HTTPResponse))? = nil) {
         self.onDataCall = onDataCall
         self.onBytesCall = onBytesCall
+        self.onDownloadCall = onDownloadCall
     }
 
     @inlinable
@@ -126,6 +154,12 @@ public final class NetworkingServiceMock: @unchecked Sendable, NetworkingService
     public func bytes(for request: HTTPRequest, delegate: (URLSessionTaskDelegate)?) async throws -> (URLSession.AsyncBytes, HTTPResponse) {
         guard let onBytesCall else { fatalError("Method was not set") }
         return try await onBytesCall(request, delegate)
+    }
+
+    @inlinable
+    public func download(for request: HTTPRequest, delegate: (URLSessionTaskDelegate)?) async throws -> (URL, HTTPResponse) {
+        guard let onDownloadCall else { fatalError("Method was not set") }
+        return try await onDownloadCall(request, delegate)
     }
     
     @inlinable

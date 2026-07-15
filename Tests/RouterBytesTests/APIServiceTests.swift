@@ -118,6 +118,11 @@ private final class UnusedNetworkingService: NetworkingServiceType {
     func bytes(for request: HTTPRequest, delegate: URLSessionTaskDelegate?) async throws -> (URLSession.AsyncBytes, HTTPResponse) {
         fatalError("This test double is intentionally unused for network calls")
     }
+
+    @available(iOS 15.0, *)
+    func download(for request: HTTPRequest, delegate: URLSessionTaskDelegate?) async throws -> (URL, HTTPResponse) {
+        fatalError("This test double is intentionally unused for network calls")
+    }
 }
 
 private struct DecodedResponse: Codable, Equatable, Sendable {
